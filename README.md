@@ -33,7 +33,7 @@ If any command hangs or doesn't work, check to see that the service in question 
 ```
 $ sudo docker ps
 ```
-Check the logs of any container in question.  Keep in mind, if a container exited or failed it will only be listed with a 'docker run -a'.
+Check the logs of any container in question.  Keep in mind, if a container exited or failed it will only be listed with a 'sudo docker ps -a'.
 ```
 $ sudo docker logs <container id>
 ```

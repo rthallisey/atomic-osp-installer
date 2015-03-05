@@ -13,8 +13,11 @@ setenforce 0
 
 docker ps -q | xargs docker stop
 
+MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') |
+    awk '$4 == "src" {print $5}')
+
 # Database
-HOST_IP=172.16.209.21
+HOST_IP=$MY_IP
 MYSQL_ROOT_PASSWORD=kolla
 PASSWORD=12345
 
@@ -38,8 +41,19 @@ GLANCE_KEYSTONE_USER=glance
 GLANCE_KEYSTONE_PASSWORD=glance
 GLANCE_API_SERVICE_HOST=$HOST_IP
 
+cat > openrc <<EOF
+export OS_AUTH_URL="http://${KEYSTONE_PUBLIC_SERVICE_HOST}:5000/v2.0"
+export OS_USERNAME="${GLANCE_KEYSTONE_USER}"
+export OS_PASSWORD="${GLANCE_KEYSTONE_PASSWORD}"
+export OS_TENANT_NAME="${ADMIN_TENANT_NAME}"
+EOF
+
 # Pull Kolla Containers (can be replaced with atomic install <container>)
-docker run -d kollaglue/fedora-rdo-rabbitmq
+
+echo Starting rabbitmq
+docker run -d -p 15672:15672 kollaglue/fedora-rdo-rabbitmq
+
+echo Starting mysql
 docker run -d \
 	-p 3306:3306 \
 	-e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
@@ -48,6 +62,7 @@ docker run -d \
 
 sleep 10
 
+echo Starting keystone
 docker run -d -p 5000:5000 -p 35357:35357 \
 	-e MARIADB_SERVICE_HOST=$HOST_IP \
 	-e KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN \
@@ -58,12 +73,31 @@ docker run -d -p 5000:5000 -p 35357:35357 \
 	-e KEYSTONE_ADMIN_SERVICE_HOST=$KEYSTONE_ADMIN_SERVICE_HOST \
 	-e PUBLIC_IP=$PUBLIC_IP \
 	-e DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
-	kollaglue/fedora-rdo-keystone
+	kollaglue/fedora-rdo-keystone:latest
 
 sleep 10
 
-docker pull kollaglue/fedora-rdo-glance-base
+echo Starting glance-api
+docker run -d -p 9292:9292 \
+	-e ADMIN_TENANT_NAME=$ADMIN_TENANT_NAME \
+	-e GLANCE_DB_NAME=$GLANCE_DB_NAME \
+	-e GLANCE_DB_USER=$GLANCE_DB_USER \
+	-e GLANCE_KEYSTONE_USER=$GLANCE_KEYSTONE_USER \
+	-e KEYSTONE_AUTH_PROTOCOL=$KEYSTONE_AUTH_PROTOCOL \
+	-e KEYSTONE_PUBLIC_SERVICE_HOST=$KEYSTONE_PUBLIC_SERVICE_HOST \
+	-e GLANCE_KEYSTONE_PASSWORD=$GLANCE_KEYSTONE_PASSWORD \
+	-e GLANCE_DB_PASSWORD=$GLANCE_DB_PASSWORD \
+	-e MARIADB_SERVICE_HOST=$HOST_IP \
+	-e KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN \
+	-e KEYSTONE_ADMIN_SERVICE_HOST=$KEYSTONE_ADMIN_SERVICE_HOST \
+	-e KEYSTONE_ADMIN_SERVICE_PORT=5000 \
+	-e PUBLIC_IP=$PUBLIC_IP \
+	-e DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
+	-e GLANCE_API_SERVICE_HOST=$GLANCE_API_SERVICE_HOST \
+	-e KEYSTONE_ADMIN_PASSWORD=$KEYSTONE_ADMIN_PASSWORD \
+	kollaglue/fedora-rdo-glance-api:latest
 
+echo Starting glance-registry
 docker run -d \
 	-e ADMIN_TENANT_NAME=$ADMIN_TENANT_NAME \
 	-e GLANCE_DB_NAME=$GLANCE_DB_NAME \
@@ -79,24 +113,7 @@ docker run -d \
 	-e PUBLIC_IP=$PUBLIC_IP \
 	-e DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
 	-e GLANCE_API_SERVICE_HOST=$GLANCE_API_SERVICE_HOST \
-	kollaglue/fedora-rdo-glance-api
-
-docker run -d \
-	-e ADMIN_TENANT_NAME=$ADMIN_TENANT_NAME \
-	-e GLANCE_DB_NAME=$GLANCE_DB_NAME \
-	-e GLANCE_DB_USER=$GLANCE_DB_USER \
-	-e GLANCE_KEYSTONE_USER=$GLANCE_KEYSTONE_USER \
-	-e KEYSTONE_AUTH_PROTOCOL=$KEYSTONE_AUTH_PROTOCOL \
-	-e KEYSTONE_PUBLIC_SERVICE_HOST=$KEYSTONE_PUBLIC_SERVICE_HOST \
-	-e GLANCE_KEYSTONE_PASSWORD=$GLANCE_KEYSTONE_PASSWORD \
-	-e GLANCE_DB_PASSWORD=$GLANCE_DB_PASSWORD \
-	-e MARIADB_SERVICE_HOST=$HOST_IP \
-	-e KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN \
-	-e KEYSTONE_ADMIN_SERVICE_HOST=$KEYSTONE_ADMIN_SERVICE_HOST \
-	-e PUBLIC_IP=$PUBLIC_IP \
-	-e DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
-	-e GLANCE_API_SERVICE_HOST=$GLANCE_API_SERVICE_HOST \
-	kollaglue/fedora-rdo-glance-registry
+	kollaglue/fedora-rdo-glance-registry:latest
 
 #sudo docker run -d --privileged \
 #	-e KEYSTONE_ADMIN_TOKEN=$PASSWORD \
