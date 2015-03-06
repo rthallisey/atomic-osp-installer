@@ -67,11 +67,13 @@ EOF
 
 # Pull Kolla Containers (can be replaced with atomic install <container>)
 
+######## RABBITMQ ########
 echo Starting rabbitmq
 docker run --name rabbitmq -d \
         -p 5672:5672 \
         kollaglue/fedora-rdo-rabbitmq
 
+######## MARIADB ########
 echo Starting mariadb
 docker run -d --name mariadb\
 	-p 3306:3306 \
@@ -81,6 +83,7 @@ docker run -d --name mariadb\
 
 sleep 10
 
+######## KEYSTONE ########
 echo Starting keystone
 docker run -d --name keystone -p 5000:5000 -p 35357:35357 \
 	-e MARIADB_SERVICE_HOST=$HOST_IP \
@@ -96,6 +99,7 @@ docker run -d --name keystone -p 5000:5000 -p 35357:35357 \
 
 sleep 10
 
+######## GLANCE ########
 echo Starting glance-registry
 docker run --name glance-registry -d \
 	-e ADMIN_TENANT_NAME=$ADMIN_TENANT_NAME \
@@ -135,6 +139,7 @@ docker run --name glance-api -d -p 9292:9292 \
 	-e KEYSTONE_ADMIN_PASSWORD=$KEYSTONE_ADMIN_PASSWORD \
 	kollaglue/fedora-rdo-glance-api:latest
 
+######## NOVA ########
 echo Starting libvirt
 sudo docker run -d --privileged \
 	-v /sys/fs/cgroup:/sys/fs/cgroup \

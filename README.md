@@ -26,6 +26,7 @@ Now you're free to run openstack on your host!
 ```
 $ keystone user-list
 ```
+NOTE: The Glance containers will not function properly until the race condition between keystone and glance-api are fixed. https://bugs.launchpad.net/kolla/+bug/1429104
 
 Debug
 ===========
