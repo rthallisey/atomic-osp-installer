@@ -60,9 +60,9 @@ CONFIG_NETWORK=True
 
 cat > openrc <<EOF
 export OS_AUTH_URL="http://${KEYSTONE_PUBLIC_SERVICE_HOST}:5000/v2.0"
-export OS_USERNAME="${GLANCE_KEYSTONE_USER}"
-export OS_PASSWORD="${GLANCE_KEYSTONE_PASSWORD}"
-export OS_TENANT_NAME="${ADMIN_TENANT_NAME}"
+export OS_USERNAME=$ADMIN_TENANT_NAME
+export OS_PASSWORD=$PASSWORD
+export OS_TENANT_NAME=$ADMIN_TENANT_NAME
 EOF
 
 # Pull Kolla Containers (can be replaced with atomic install <container>)
