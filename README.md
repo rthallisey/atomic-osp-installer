@@ -26,7 +26,11 @@ Now you're free to run openstack on your host!
 ```
 $ keystone user-list
 ```
-NOTE: The Glance containers will not function properly until the race condition between keystone and glance-api are fixed. https://bugs.launchpad.net/kolla/+bug/1429104
+```
+$ glance image-list
+```
+
+NOTE: The install script pulls from imain's and rthallisey's docker repos for Nova and Glace images.  The Kolla Glance containers will not function properly until the race condition between keystone and glance-api is fixed. https://bugs.launchpad.net/kolla/+bug/1429104
 
 Debug
 ===========
