@@ -6,8 +6,9 @@
 # Copy Config
 #cp -p glance.conf ${HOST}/etc/glance/glance.conf
 
-rm -rf /var/lib/mysql
-mkdir -p /var/lib/mysql
+# Commenting out for now.  DB will just get remade each time in the container.
+#rm -rf /var/lib/mysql
+#mkdir -p /var/lib/mysql
 
 setenforce 0
 
@@ -79,12 +80,14 @@ docker run --name rabbitmq -d \
         -p 5672:5672 \
 	kollaglue/fedora-rdo-rabbitmq
 
+# Add to bind mount mysql dir to host.
+#-v /var/lib/mysql:/var/lib/mysql \
+
 ######## MARIADB ########
 echo Starting mariadb
 docker run -d --name mariadb\
 	-p 3306:3306 \
 	-e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
-	-v /var/lib/mysql:/var/lib/mysql \
 	kollaglue/fedora-rdo-mariadb
 
 sleep 10
@@ -167,7 +170,7 @@ sudo docker run -d \
  	-e MARIADB_SERVICE_HOST=$HOST_IP \
  	-e GLANCE_API_SERVICE_HOST=$GLANCE_API_SERVICE_HOST \
  	-e DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
-	imain/fedora-rdo-nova-conductor
+	imain/fedora-rdo-nova-conductor:latest
 
 sleep 10
 
@@ -244,7 +247,7 @@ sudo docker run -d --privileged -p 8774:8774 \
  	-e NETWORK_MANAGER=nova \
  	-e PUBLIC_INTERFACE=$NOVA_PUBLIC_INTERFACE \
  	-e FLAT_INTERFACE=$NOVA_FLAT_INTERFACE \
-	imain/fedora-rdo-nova-api
+	imain/fedora-rdo-nova-api:latest
 
 echo Starting nova-scheduler
 sudo docker run -d \
@@ -267,4 +270,4 @@ sudo docker run -d \
  	-e FLAT_INTERFACE=$NOVA_FLAT_INTERFACE \
  	-e MARIADB_SERVICE_HOST=$HOST_IP \
  	-e DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
-	imain/fedora-rdo-nova-scheduler
+	imain/fedora-rdo-nova-scheduler:latest
