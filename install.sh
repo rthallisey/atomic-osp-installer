@@ -11,11 +11,17 @@ mkdir -p /var/lib/mysql
 
 setenforce 0
 
-docker ps -q | xargs docker stop
-docker ps -qa | xargs docker rm
-
 MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') |
     awk '$4 == "src" {print $5}')
+
+MY_DEV=$(ip route get $(ip route | awk '$1 == "default" {print $3}') |
+    awk '$4 == "src" {print $3}')
+
+echo MY_IP=$MY_IP
+echo MY_DEV=$MY_DEV
+
+docker ps -q | xargs docker stop
+docker ps -qa | xargs docker rm
 
 # Database
 HOST_IP=$MY_IP
@@ -53,8 +59,8 @@ NOVA_KEYSTONE_USER=nova
 NOVA_KEYSTONE_PASSWORD=nova
 NOVA_API_SERVICE_HOST=$HOST_IP
 NOVA_EC2_SERVICE_HOST=$HOST_IP
-NOVA_PUBLIC_INTERFACE=eth0
-NOVA_FLAT_INTERFACE=eth0
+NOVA_PUBLIC_INTERFACE=$MY_DEV
+NOVA_FLAT_INTERFACE=$MY_DEV
 CONFIG_NETWORK=True
 
 
@@ -121,6 +127,7 @@ docker run --name glance-registry -p 9191:9191 -d \
 echo Starting glance-api
 docker run --name glance-api -d -p 9292:9292 \
         --link 	glance-registry:glance-registry \
+        --link 	rabbitmq:rabbitmq \
 	-e ADMIN_TENANT_NAME=$ADMIN_TENANT_NAME \
 	-e GLANCE_DB_NAME=$GLANCE_DB_NAME \
 	-e GLANCE_DB_USER=$GLANCE_DB_USER \
@@ -138,6 +145,35 @@ docker run --name glance-api -d -p 9292:9292 \
 	-e GLANCE_API_SERVICE_HOST=$GLANCE_API_SERVICE_HOST \
 	-e KEYSTONE_ADMIN_PASSWORD=$KEYSTONE_ADMIN_PASSWORD \
 	rthallisey/fedora-rdo-glance-api:latest
+
+echo Starting nova-conductor
+sudo docker run -d \
+ 	-e KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN \
+ 	-e KEYSTONE_ADMIN_SERVICE_HOST=$KEYSTONE_ADMIN_SERVICE_HOST \
+ 	-e NOVA_KEYSTONE_USER=$NOVA_KEYSTONE_USER \
+ 	-e NOVA_KEYSTONE_PASSWORD=$NOVA_KEYSTONE_PASSWORD \
+ 	-e NOVA_API_SERVICE_HOST=$NOVA_API_SERVICE_HOST \
+ 	-e NOVA_EC2_SERVICE_HOST=$NOVA_EC2_SERVICE_HOST \
+ 	-e ADMIN_TENANT_NAME=$ADMIN_TENANT_NAME \
+         -e PUBLIC_IP=$HOST_IP \
+ 	-e NOVA_DB_USER=$NOVA_DB_USER \
+ 	-e NOVA_DB_NAME=$NOVA_DB_NAME \
+ 	-e NOVA_DB_PASSWORD=$NOVA_DB_PASSWORD \
+ 	-e RABBITMQ_SERVICE_HOST=$RABBITMQ_SERVICE_HOST \
+ 	-e KEYSTONE_PUBLIC_SERVICE_HOST=$KEYSTONE_PUBLIC_SERVICE_HOST \
+ 	-e NETWORK_MANAGER=nova \
+ 	-e PUBLIC_INTERFACE=$NOVA_PUBLIC_INTERFACE \
+ 	-e FLAT_INTERFACE=$NOVA_FLAT_INTERFACE \
+ 	-e MARIADB_SERVICE_HOST=$HOST_IP \
+ 	-e GLANCE_API_SERVICE_HOST=$GLANCE_API_SERVICE_HOST \
+ 	-e DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
+	imain/fedora-rdo-nova-conductor
+
+sleep 10
+
+sudo mkdir -p /etc/libvirt
+
+# Libvirt is in nova compute for now.
 
 ######## NOVA ########
 #echo Starting libvirt
@@ -162,6 +198,8 @@ sudo docker run -d --privileged \
 	-e FLAT_INTERFACE=$NOVA_FLAT_INTERFACE \
 	-v /sys/fs/cgroup:/sys/fs/cgroup \
 	-v /var/lib/nova:/var/lib/nova \
+	-v /run/libvirt:/run/libvirt \
+	-v /etc/libvirt:/etc/libvirt \
 	--pid=host --net=host \
 	imain/fedora-rdo-nova-compute:latest
 
@@ -206,30 +244,7 @@ sudo docker run -d --privileged -p 8774:8774 \
  	-e NETWORK_MANAGER=nova \
  	-e PUBLIC_INTERFACE=$NOVA_PUBLIC_INTERFACE \
  	-e FLAT_INTERFACE=$NOVA_FLAT_INTERFACE \
-	kollaglue/fedora-rdo-nova-api
-
-echo Starting nova-conductor
-sudo docker run -d \
- 	-e KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN \
- 	-e KEYSTONE_ADMIN_SERVICE_HOST=$KEYSTONE_ADMIN_SERVICE_HOST \
- 	-e NOVA_KEYSTONE_USER=$NOVA_KEYSTONE_USER \
- 	-e NOVA_KEYSTONE_PASSWORD=$NOVA_KEYSTONE_PASSWORD \
- 	-e NOVA_API_SERVICE_HOST=$NOVA_API_SERVICE_HOST \
- 	-e NOVA_EC2_SERVICE_HOST=$NOVA_EC2_SERVICE_HOST \
- 	-e ADMIN_TENANT_NAME=$ADMIN_TENANT_NAME \
-         -e PUBLIC_IP=$HOST_IP \
- 	-e NOVA_DB_USER=$NOVA_DB_USER \
- 	-e NOVA_DB_NAME=$NOVA_DB_NAME \
- 	-e NOVA_DB_PASSWORD=$NOVA_DB_PASSWORD \
- 	-e RABBITMQ_SERVICE_HOST=$RABBITMQ_SERVICE_HOST \
- 	-e KEYSTONE_PUBLIC_SERVICE_HOST=$KEYSTONE_PUBLIC_SERVICE_HOST \
- 	-e NETWORK_MANAGER=nova \
- 	-e PUBLIC_INTERFACE=$NOVA_PUBLIC_INTERFACE \
- 	-e FLAT_INTERFACE=$NOVA_FLAT_INTERFACE \
- 	-e MARIADB_SERVICE_HOST=$HOST_IP \
- 	-e GLANCE_API_SERVICE_HOST=$GLANCE_API_SERVICE_HOST \
- 	-e DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
-	kollaglue/fedora-rdo-nova-conductor
+	imain/fedora-rdo-nova-api
 
 echo Starting nova-scheduler
 sudo docker run -d \
@@ -252,4 +267,4 @@ sudo docker run -d \
  	-e FLAT_INTERFACE=$NOVA_FLAT_INTERFACE \
  	-e MARIADB_SERVICE_HOST=$HOST_IP \
  	-e DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
-	kollaglue/fedora-rdo-nova-scheduler
+	imain/fedora-rdo-nova-scheduler
