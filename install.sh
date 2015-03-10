@@ -16,11 +16,13 @@ echo MY_IP=$MY_IP
 echo MY_DEV=$MY_DEV
 
 # Cleanup from previous runs.  Just for iteration purposes for now.
-containers = `docker ps -q`
+containers=`docker ps -q`
 if [ ! -z "$containers" ]; then
     docker ps -q | xargs docker stop
     docker ps -qa | xargs docker rm
 fi
+
+firewall-cmd --add-service=mysql
 
 # Database
 HOST_IP=$MY_IP
@@ -62,6 +64,8 @@ NOVA_PUBLIC_INTERFACE=$MY_DEV
 NOVA_FLAT_INTERFACE=$MY_DEV
 CONFIG_NETWORK=True
 
+# We need these for the external setup commands.
+yum -y install openstack-keystone openstack-glance openstack-nova
 
 cat > openrc <<EOF
 export OS_AUTH_URL="http://${KEYSTONE_PUBLIC_SERVICE_HOST}:5000/v2.0"
@@ -69,6 +73,9 @@ export OS_USERNAME=$ADMIN_TENANT_NAME
 export OS_PASSWORD=$PASSWORD
 export OS_TENANT_NAME=$ADMIN_TENANT_NAME
 EOF
+
+# Source it now for commands..
+source openrc
 
 # Pull Kolla Containers (can be replaced with atomic install <container>)
 
@@ -88,7 +95,11 @@ docker run -d --name mariadb\
 	-e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
 	kollaglue/fedora-rdo-mariadb
 
-sleep 10
+until mysql -u root --password=kolla --host=172.31.0.2 mysql -e "show tables;"
+do
+    echo waiting for mysql..
+    sleep 1
+done
 
 ######## KEYSTONE ########
 echo Starting keystone
@@ -104,7 +115,11 @@ docker run -d --name keystone -p 5000:5000 -p 35357:35357 \
 	-e DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
 	kollaglue/fedora-rdo-keystone
 
-sleep 10
+until keystone user-list
+do
+    echo waiting for keystone..
+    sleep 1
+done
 
 ######## GLANCE ########
 echo Starting glance-registry
@@ -171,7 +186,11 @@ docker run --name nova-conductor -d \
 	imain/fedora-rdo-nova-conductor:latest
 
 echo "Waiting for nova-conductor to create the database.."
-sleep 10
+until keystone user-list | grep nova
+do
+    echo waiting for keystone nova user
+    sleep 1
+done
 
 # mkdir -p /etc/libvirt
 
@@ -276,8 +295,6 @@ IMAGE=Fedora-Cloud-Atomic-20141203-21.x86_64.qcow2
 if ! [ -f "$IMAGE" ]; then
     curl -o $IMAGE $IMAGE_URL/$IMAGE
 fi
-
-source openrc
 
 echo "Creating glance image.."
 glance image-create --name "puffy_clouds" --is-public true --disk-format qcow2 --container-format bare --file $IMAGE
