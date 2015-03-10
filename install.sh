@@ -303,8 +303,8 @@ docker run --name nova-scheduler -d \
  	-e DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
 	imain/fedora-rdo-nova-scheduler:latest
 
-IMAGE_URL=http://download.devel.redhat.com/released/F-21/GOLD/Cloud/Images/x86_64/
-IMAGE=Fedora-Cloud-Atomic-20141203-21.x86_64.qcow2
+IMAGE_URL=http://download.cirros-cloud.net/0.3.3/
+IMAGE=cirros-0.3.3-x86_64-disk.img
 if ! [ -f "$IMAGE" ]; then
     curl -o $IMAGE $IMAGE_URL/$IMAGE
 fi
