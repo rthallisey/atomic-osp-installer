@@ -1,10 +1,4 @@
 #!/bin/bash -x
-# Create config and data dirs
-#mkdir -p ${HOST}/etc/glance ${HOST}/var/log/glance
-
-# Use as an enviroment variable for service config?
-# Copy Config
-#cp -p glance.conf ${HOST}/etc/glance/glance.conf
 
 # Commenting out for now.  DB will just get remade each time in the container.
 #rm -rf /var/lib/mysql
@@ -158,7 +152,7 @@ sudo docker run -d \
  	-e NOVA_API_SERVICE_HOST=$NOVA_API_SERVICE_HOST \
  	-e NOVA_EC2_SERVICE_HOST=$NOVA_EC2_SERVICE_HOST \
  	-e ADMIN_TENANT_NAME=$ADMIN_TENANT_NAME \
-         -e PUBLIC_IP=$HOST_IP \
+ 	-e PUBLIC_IP=$HOST_IP \
  	-e NOVA_DB_USER=$NOVA_DB_USER \
  	-e NOVA_DB_NAME=$NOVA_DB_NAME \
  	-e NOVA_DB_PASSWORD=$NOVA_DB_PASSWORD \
@@ -172,12 +166,12 @@ sudo docker run -d \
  	-e DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
 	imain/fedora-rdo-nova-conductor:latest
 
+echo "Waiting for nova-conductor to create the database.."
 sleep 10
 
 sudo mkdir -p /etc/libvirt
 
 # Libvirt is in nova compute for now.
-
 ######## NOVA ########
 #echo Starting libvirt
 #sudo docker run -d --privileged -p 16509:16509 \
@@ -202,9 +196,10 @@ sudo docker run -d --privileged \
 	-v /sys/fs/cgroup:/sys/fs/cgroup \
 	-v /var/lib/nova:/var/lib/nova \
 	-v /run/libvirt:/run/libvirt \
-	-v /etc/libvirt:/etc/libvirt \
 	--pid=host --net=host \
 	imain/fedora-rdo-nova-compute:latest
+
+#	-v /etc/libvirt:/etc/libvirt \
 
 echo Starting nova-network
 sudo docker run -d --privileged \
@@ -216,7 +211,7 @@ sudo docker run -d --privileged \
  	-e NOVA_KEYSTONE_USER=$NOVA_KEYSTONE_USER \
  	-e NOVA_KEYSTONE_PASSWORD=$NOVA_KEYSTONE_PASSWORD \
  	-e GLANCE_API_SERVICE_HOST=$GLANCE_API_SERVICE_HOST \
-         -e PUBLIC_IP=$HOST_IP \
+ 	-e PUBLIC_IP=$HOST_IP \
  	-e NETWORK_MANAGER=nova \
  	-e CONFIG_NETWORK=$CONFIG_NETWORK \
  	-e PUBLIC_INTERFACE=$NOVA_PUBLIC_INTERFACE \
@@ -258,7 +253,7 @@ sudo docker run -d \
  	-e NOVA_API_SERVICE_HOST=$NOVA_API_SERVICE_HOST \
  	-e NOVA_EC2_SERVICE_HOST=$NOVA_EC2_SERVICE_HOST \
  	-e ADMIN_TENANT_NAME=$ADMIN_TENANT_NAME \
-         -e PUBLIC_IP=$HOST_IP \
+ 	-e PUBLIC_IP=$HOST_IP \
  	-e NOVA_DB_USER=$NOVA_DB_USER \
  	-e NOVA_DB_NAME=$NOVA_DB_NAME \
  	-e NOVA_DB_PASSWORD=$NOVA_DB_PASSWORD \
@@ -271,3 +266,25 @@ sudo docker run -d \
  	-e MARIADB_SERVICE_HOST=$HOST_IP \
  	-e DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
 	imain/fedora-rdo-nova-scheduler:latest
+
+IMAGE_URL=http://download.devel.redhat.com/released/F-21/GOLD/Cloud/Images/x86_64/
+IMAGE=Fedora-Cloud-Atomic-20141203-21.x86_64.qcow2
+if ! [ -f "$IMAGE" ]; then
+    curl -o $IMAGE $IMAGE_URL/$IMAGE
+fi
+
+source openrc
+
+echo "Creating glance image.."
+glance image-create --name "puffy_clouds" --is-public true --disk-format qcow2 --container-format bare --file $IMAGE
+
+sleep 10
+
+echo "Setting up network.."
+nova network-create vmnet --fixed-range-v4=10.0.0.0/24 --bridge=br100 --multi-host=T
+nova secgroup-add-rule default tcp 22 22 0.0.0.0/0
+nova secgroup-add-rule default icmp -1 -1 0.0.0.0/0
+
+#nova keypair-add mykey > mykey.pem
+#chmod 600 mykey.pem
+#nova boot --flavor m1.medium --key_name mykey --image puffy_clouds newInstanceName
