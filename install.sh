@@ -98,7 +98,7 @@ docker run -d --name mariadb\
 until mysql -u root --password=kolla --host=$MY_IP mysql -e "show tables;"
 do
     echo waiting for mysql..
-    sleep 1
+    sleep 3
 done
 
 ######## KEYSTONE ########
@@ -118,7 +118,7 @@ docker run -d --name keystone -p 5000:5000 -p 35357:35357 \
 until keystone user-list
 do
     echo waiting for keystone..
-    sleep 1
+    sleep 3
 done
 
 ######## GLANCE ########
@@ -185,12 +185,44 @@ docker run --name nova-conductor -d \
  	-e DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
 	imain/fedora-rdo-nova-conductor:latest
 
-echo "Waiting for nova-conductor to create the database.."
+until mysql -u root --password=kolla --host=$MY_IP mysql -e "use nova;"
+do
+    echo waiting for nova db.
+    sleep 3
+done
+
+echo Starting nova-api
+#So this shouldn't really need to be privileged but for some reason
+# it is running an iptables command which fails because it doesn't have
+#permissions.
+docker run --name nova-api -d --privileged -p 8774:8774 \
+ 	-e KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN \
+ 	-e KEYSTONE_ADMIN_SERVICE_HOST=$KEYSTONE_ADMIN_SERVICE_HOST \
+ 	-e NOVA_KEYSTONE_USER=$NOVA_KEYSTONE_USER \
+ 	-e NOVA_KEYSTONE_PASSWORD=$NOVA_KEYSTONE_PASSWORD \
+ 	-e NOVA_API_SERVICE_HOST=$NOVA_API_SERVICE_HOST \
+ 	-e NOVA_EC2_API_SERVICE_HOST=$NOVA_EC2_SERVICE_HOST \
+	-e DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
+ 	-e MARIADB_SERVICE_HOST=$HOST_IP \
+ 	-e ADMIN_TENANT_NAME=$ADMIN_TENANT_NAME \
+        -e PUBLIC_IP=$HOST_IP \
+ 	-e NOVA_DB_NAME=$NOVA_DB_NAME \
+ 	-e NOVA_DB_PASSWORD=$NOVA_DB_PASSWORD \
+ 	-e GLANCE_API_SERVICE_HOST=$GLANCE_API_SERVICE_HOST \
+ 	-e RABBITMQ_SERVICE_HOST=$RABBITMQ_SERVICE_HOST \
+ 	-e KEYSTONE_PUBLIC_SERVICE_HOST=$KEYSTONE_PUBLIC_SERVICE_HOST \
+ 	-e NETWORK_MANAGER=nova \
+ 	-e PUBLIC_INTERFACE=$NOVA_PUBLIC_INTERFACE \
+ 	-e FLAT_INTERFACE=$NOVA_FLAT_INTERFACE \
+	imain/fedora-rdo-nova-api:latest
+
+echo "Waiting for nova-api to create keystone user.."
 until keystone user-list | grep nova
 do
     echo waiting for keystone nova user
-    sleep 1
+    sleep 2
 done
+
 
 # mkdir -p /etc/libvirt
 
@@ -242,31 +274,6 @@ docker run --name nova-network -d --privileged \
  	--net=host \
  	imain/fedora-rdo-nova-network:latest
 
-echo Starting nova-api
-#So this shouldn't really need to be privileged but for some reason
-# it is running an iptables command which fails because it doesn't have
-#permissions.
-docker run --name nova-api -d --privileged -p 8774:8774 \
- 	-e KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN \
- 	-e KEYSTONE_ADMIN_SERVICE_HOST=$KEYSTONE_ADMIN_SERVICE_HOST \
- 	-e NOVA_KEYSTONE_USER=$NOVA_KEYSTONE_USER \
- 	-e NOVA_KEYSTONE_PASSWORD=$NOVA_KEYSTONE_PASSWORD \
- 	-e NOVA_API_SERVICE_HOST=$NOVA_API_SERVICE_HOST \
- 	-e NOVA_EC2_API_SERVICE_HOST=$NOVA_EC2_SERVICE_HOST \
-	-e DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
- 	-e MARIADB_SERVICE_HOST=$HOST_IP \
- 	-e ADMIN_TENANT_NAME=$ADMIN_TENANT_NAME \
-        -e PUBLIC_IP=$HOST_IP \
- 	-e NOVA_DB_NAME=$NOVA_DB_NAME \
- 	-e NOVA_DB_PASSWORD=$NOVA_DB_PASSWORD \
- 	-e GLANCE_API_SERVICE_HOST=$GLANCE_API_SERVICE_HOST \
- 	-e RABBITMQ_SERVICE_HOST=$RABBITMQ_SERVICE_HOST \
- 	-e KEYSTONE_PUBLIC_SERVICE_HOST=$KEYSTONE_PUBLIC_SERVICE_HOST \
- 	-e NETWORK_MANAGER=nova \
- 	-e PUBLIC_INTERFACE=$NOVA_PUBLIC_INTERFACE \
- 	-e FLAT_INTERFACE=$NOVA_FLAT_INTERFACE \
-	imain/fedora-rdo-nova-api:latest
-
 echo Starting nova-scheduler
 docker run --name nova-scheduler -d \
  	-e KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN \
@@ -301,10 +308,10 @@ glance image-create --name "puffy_clouds" --is-public true --disk-format qcow2 -
 
 sleep 10
 
-echo "Setting up network.."
-nova network-create vmnet --fixed-range-v4=10.0.0.0/24 --bridge=br100 --multi-host=T
 nova secgroup-add-rule default tcp 22 22 0.0.0.0/0
 nova secgroup-add-rule default icmp -1 -1 0.0.0.0/0
+echo "Setting up network.."
+nova network-create vmnet --fixed-range-v4=10.0.0.0/24 --bridge=br100 --multi-host=T
 
 #nova keypair-add mykey > mykey.pem
 #chmod 600 mykey.pem
