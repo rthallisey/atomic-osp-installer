@@ -95,7 +95,7 @@ docker run -d --name mariadb\
 	-e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
 	kollaglue/fedora-rdo-mariadb
 
-until mysql -u root --password=kolla --host=172.31.0.2 mysql -e "show tables;"
+until mysql -u root --password=kolla --host=$MY_IP mysql -e "show tables;"
 do
     echo waiting for mysql..
     sleep 1
