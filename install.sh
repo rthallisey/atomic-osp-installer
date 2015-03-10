@@ -71,7 +71,7 @@ NOVA_FLAT_INTERFACE=$MY_DEV
 CONFIG_NETWORK=True
 
 # We need these for the external setup commands.
-yum -y install openstack-keystone openstack-glance openstack-nova
+yum -y install openstack-keystone openstack-glance openstack-nova mariadb
 
 cat > openrc <<EOF
 export OS_AUTH_URL="http://${KEYSTONE_PUBLIC_SERVICE_HOST}:5000/v2.0"
