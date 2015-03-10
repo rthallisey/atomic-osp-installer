@@ -15,8 +15,12 @@ MY_DEV=$(ip route get $(ip route | awk '$1 == "default" {print $3}') |
 echo MY_IP=$MY_IP
 echo MY_DEV=$MY_DEV
 
-docker ps -q | xargs docker stop
-docker ps -qa | xargs docker rm
+# Cleanup from previous runs.  Just for iteration purposes for now.
+containers = `docker ps -q`
+if [ ! -z "$containers" ]; then
+    docker ps -q | xargs docker stop
+    docker ps -qa | xargs docker rm
+fi
 
 # Database
 HOST_IP=$MY_IP
@@ -144,7 +148,7 @@ docker run --name glance-api -d -p 9292:9292 \
 	rthallisey/fedora-rdo-glance-api:latest
 
 echo Starting nova-conductor
-sudo docker run -d \
+docker run --name nova-conductor -d \
  	-e KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN \
  	-e KEYSTONE_ADMIN_SERVICE_HOST=$KEYSTONE_ADMIN_SERVICE_HOST \
  	-e NOVA_KEYSTONE_USER=$NOVA_KEYSTONE_USER \
@@ -169,19 +173,19 @@ sudo docker run -d \
 echo "Waiting for nova-conductor to create the database.."
 sleep 10
 
-sudo mkdir -p /etc/libvirt
+# mkdir -p /etc/libvirt
 
 # Libvirt is in nova compute for now.
 ######## NOVA ########
 #echo Starting libvirt
-#sudo docker run -d --privileged -p 16509:16509 \
+#docker run -d --privileged -p 16509:16509 \
 #	-v /sys/fs/cgroup:/sys/fs/cgroup \
 #	-v /var/lib/nova:/var/lib/nova \
 #	--pid=host --net=host \
 #	kollaglue/fedora-rdo-nova-libvirt
 
 echo Starting nova-compute
-sudo docker run -d --privileged \
+docker run --name nova-compute -d --privileged \
      	-e KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN \
 	-e NOVA_DB_PASSWORD=$NOVA_DB_PASSWORD \
 	-e RABBITMQ_SERVICE_HOST=$RABBITMQ_SERVICE_HOST \
@@ -202,7 +206,7 @@ sudo docker run -d --privileged \
 #	-v /etc/libvirt:/etc/libvirt \
 
 echo Starting nova-network
-sudo docker run -d --privileged \
+docker run --name nova-network -d --privileged \
  	-e KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN \
  	-e NOVA_DB_PASSWORD=$NOVA_DB_PASSWORD \
  	-e RABBITMQ_SERVICE_HOST=$RABBITMQ_SERVICE_HOST \
@@ -223,7 +227,7 @@ echo Starting nova-api
 #So this shouldn't really need to be privileged but for some reason
 # it is running an iptables command which fails because it doesn't have
 #permissions.
-sudo docker run -d --privileged -p 8774:8774 \
+docker run --name nova-api -d --privileged -p 8774:8774 \
  	-e KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN \
  	-e KEYSTONE_ADMIN_SERVICE_HOST=$KEYSTONE_ADMIN_SERVICE_HOST \
  	-e NOVA_KEYSTONE_USER=$NOVA_KEYSTONE_USER \
@@ -245,7 +249,7 @@ sudo docker run -d --privileged -p 8774:8774 \
 	imain/fedora-rdo-nova-api:latest
 
 echo Starting nova-scheduler
-sudo docker run -d \
+docker run --name nova-scheduler -d \
  	-e KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN \
  	-e KEYSTONE_ADMIN_SERVICE_HOST=$KEYSTONE_ADMIN_SERVICE_HOST \
  	-e NOVA_KEYSTONE_USER=$NOVA_KEYSTONE_USER \
