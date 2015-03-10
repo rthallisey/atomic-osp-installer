@@ -7,6 +7,8 @@
 setenforce 0
 modprobe ebtables
 
+systemctl stop libvirtd
+
 MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') |
     awk '$4 == "src" {print $5}')
 
@@ -41,6 +43,8 @@ PUBLIC_IP=$HOST_IP
 
 # RabbitMQ
 RABBITMQ_SERVICE_HOST=$HOST_IP
+RABBIT_USER=guest
+RABBIT_PASSWORD=guest
 
 # Keystone
 KEYSTONE_ADMIN_TOKEN=$PASSWORD
@@ -89,7 +93,9 @@ source openrc
 echo Starting rabbitmq
 docker run --name rabbitmq -d \
         -p 5672:5672 \
-	kollaglue/fedora-rdo-rabbitmq
+ 	-e RABBITMQ_USER=$RABBIT_USER \
+ 	-e RABBITMQ_PASS=$RABBIT_PASSWORD \
+	imain/fedora-rdo-rabbitmq
 
 # Add to bind mount mysql dir to host.
 #-v /var/lib/mysql:/var/lib/mysql \
@@ -99,7 +105,7 @@ echo Starting mariadb
 docker run -d --name mariadb\
 	-p 3306:3306 \
 	-e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
-	kollaglue/fedora-rdo-mariadb
+	imain/fedora-rdo-mariadb
 
 until mysql -u root --password=kolla --host=$MY_IP mysql -e "show tables;"
 do
@@ -119,7 +125,7 @@ docker run -d --name keystone -p 5000:5000 -p 35357:35357 \
 	-e KEYSTONE_ADMIN_SERVICE_HOST=$KEYSTONE_ADMIN_SERVICE_HOST \
 	-e PUBLIC_IP=$PUBLIC_IP \
 	-e DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
-	kollaglue/fedora-rdo-keystone
+	imain/fedora-rdo-keystone
 
 until keystone user-list
 do
@@ -181,6 +187,8 @@ docker run --name nova-conductor -d \
  	-e NOVA_DB_USER=$NOVA_DB_USER \
  	-e NOVA_DB_NAME=$NOVA_DB_NAME \
  	-e NOVA_DB_PASSWORD=$NOVA_DB_PASSWORD \
+ 	-e RABBIT_USERID=$RABBIT_USER \
+ 	-e RABBIT_PASSWORD=$RABBIT_PASSWORD \
  	-e RABBITMQ_SERVICE_HOST=$RABBITMQ_SERVICE_HOST \
  	-e KEYSTONE_PUBLIC_SERVICE_HOST=$KEYSTONE_PUBLIC_SERVICE_HOST \
  	-e NETWORK_MANAGER=nova \
@@ -216,6 +224,8 @@ docker run --name nova-api -d --privileged -p 8774:8774 \
  	-e NOVA_DB_PASSWORD=$NOVA_DB_PASSWORD \
  	-e GLANCE_API_SERVICE_HOST=$GLANCE_API_SERVICE_HOST \
  	-e RABBITMQ_SERVICE_HOST=$RABBITMQ_SERVICE_HOST \
+ 	-e RABBIT_USERID=$RABBIT_USER \
+ 	-e RABBIT_PASSWORD=$RABBIT_PASSWORD \
  	-e KEYSTONE_PUBLIC_SERVICE_HOST=$KEYSTONE_PUBLIC_SERVICE_HOST \
  	-e NETWORK_MANAGER=nova \
  	-e PUBLIC_INTERFACE=$NOVA_PUBLIC_INTERFACE \
@@ -230,7 +240,7 @@ do
 done
 
 
-# mkdir -p /etc/libvirt
+mkdir -p /etc/libvirt/qemu
 
 # Libvirt is in nova compute for now.
 ######## NOVA ########
@@ -242,10 +252,13 @@ done
 #	kollaglue/fedora-rdo-nova-libvirt
 
 echo Starting nova-compute
-docker run --name nova-compute -d --privileged \
+#docker run --name nova-compute -d --privileged \
+docker run -d --privileged \
      	-e KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN \
 	-e NOVA_DB_PASSWORD=$NOVA_DB_PASSWORD \
 	-e RABBITMQ_SERVICE_HOST=$RABBITMQ_SERVICE_HOST \
+ 	-e RABBIT_USERID=$RABBIT_USER \
+ 	-e RABBIT_PASSWORD=$RABBIT_PASSWORD \
 	-e GLANCE_API_SERVICE_HOST=$GLANCE_API_SERVICE_HOST \
 	-e KEYSTONE_PUBLIC_SERVICE_HOST=$KEYSTONE_PUBLIC_SERVICE_HOST \
 	-e NOVA_KEYSTONE_USER=$NOVA_KEYSTONE_USER \
@@ -257,16 +270,18 @@ docker run --name nova-compute -d --privileged \
 	-v /sys/fs/cgroup:/sys/fs/cgroup \
 	-v /var/lib/nova:/var/lib/nova \
 	-v /run/libvirt:/run/libvirt \
+	-v /etc/libvirt/qemu:/etc/libvirt/qemu \
 	--pid=host --net=host \
 	imain/fedora-rdo-nova-compute:latest
 
-#	-v /etc/libvirt:/etc/libvirt \
 
 echo Starting nova-network
 docker run --name nova-network -d --privileged \
  	-e KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN \
  	-e NOVA_DB_PASSWORD=$NOVA_DB_PASSWORD \
  	-e RABBITMQ_SERVICE_HOST=$RABBITMQ_SERVICE_HOST \
+ 	-e RABBIT_USERID=$RABBIT_USER \
+ 	-e RABBIT_PASSWORD=$RABBIT_PASSWORD \
  	-e GLANCE_API_SERVICE_HOST=$GLANCE_API_SERVICE_HOST \
  	-e KEYSTONE_PUBLIC_SERVICE_HOST=$KEYSTONE_PUBLIC_SERVICE_HOST \
  	-e NOVA_KEYSTONE_USER=$NOVA_KEYSTONE_USER \
@@ -294,6 +309,8 @@ docker run --name nova-scheduler -d \
  	-e NOVA_DB_NAME=$NOVA_DB_NAME \
  	-e NOVA_DB_PASSWORD=$NOVA_DB_PASSWORD \
  	-e RABBITMQ_SERVICE_HOST=$RABBITMQ_SERVICE_HOST \
+ 	-e RABBIT_USERID=$RABBIT_USER \
+ 	-e RABBIT_PASSWORD=$RABBIT_PASSWORD \
  	-e GLANCE_API_SERVICE_HOST=$GLANCE_API_SERVICE_HOST \
  	-e KEYSTONE_PUBLIC_SERVICE_HOST=$KEYSTONE_PUBLIC_SERVICE_HOST \
  	-e NETWORK_MANAGER=nova \
