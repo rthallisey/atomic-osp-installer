@@ -5,6 +5,7 @@
 #mkdir -p /var/lib/mysql
 
 setenforce 0
+modprobe ebtables
 
 MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') |
     awk '$4 == "src" {print $5}')
