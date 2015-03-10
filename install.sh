@@ -20,8 +20,13 @@ echo MY_DEV=$MY_DEV
 containers=`docker ps -q`
 if [ ! -z "$containers" ]; then
     docker ps -q | xargs docker stop
+fi
+
+containers=`docker ps -qa`
+if [ ! -z "$containers" ]; then
     docker ps -qa | xargs docker rm
 fi
+
 
 firewall-cmd --add-service=mysql
 
