@@ -1,4 +1,4 @@
-mariadb:
+rabbitmq:
   image: imain/fedora-rdo-rabbitmq
   name: rabbitmq
   net: "host"

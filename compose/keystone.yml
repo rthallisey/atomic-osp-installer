@@ -1,7 +1,5 @@
 keystone:
   image: imain/fedora-rdo-keystone
-  links:
-   - mariadb
   net: "host"
   env_file:
    - openstack.env
