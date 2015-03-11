@@ -12,6 +12,9 @@ systemctl stop libvirtd
 # We need these for the user setup commands.
 yum -y install openstack-keystone openstack-glance openstack-nova mariadb
 
+MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') |
+    awk '$4 == "src" {print $5}')
+
 # Source openrc for commands
 source openrc
 
