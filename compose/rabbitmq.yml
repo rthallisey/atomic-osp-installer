@@ -1,0 +1,6 @@
+mariadb:
+  image: imain/fedora-rdo-rabbitmq
+  name: rabbitmq
+  net: "host"
+  env_file:
+   - openstack.env
