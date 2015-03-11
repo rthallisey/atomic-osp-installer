@@ -1,5 +1,6 @@
 libvirt:
    image: kollaglue/fedora-rdo-nova-libvirt
+   name: libvirt
    net: host
    pid: host
    privileged: true
@@ -11,6 +12,7 @@ libvirt:
     - /etc/libvirt/nwfilter:/etc/libvirt/nwfilter
 network:
    image: kollaglue/fedora-rdo-nova-network
+   name: nova-network
    net: host
    privileged: true
    volumes:
@@ -20,6 +22,7 @@ network:
     - /var/lib/libvirt:/var/lib/libvirt
 compute:
    image: kollaglue/fedora-rdo-nova-compute
+   name: nova-compute
    net: host
    privileged: true
    volumes:

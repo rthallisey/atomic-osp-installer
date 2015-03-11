@@ -1,16 +1,19 @@
 novaconductor:
   image: imain/fedora-rdo-nova-conductor:latest
+  name: nova-conductor
   net: "host"
   env_file:
    - openstack.env
 novaapi:
   image: imain/fedora-rdo-nova-api:latest
+  name: nova-api
   privileged: True
   net: "host"
   env_file:
    - openstack.env
 novascheduler:
   image: imain/fedora-rdo-nova-scheduler:latest
+  name: nova-scheduler
   net: "host"
   env_file:
    - openstack.env

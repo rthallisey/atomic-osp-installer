@@ -1,5 +1,6 @@
 keystone:
   image: imain/fedora-rdo-keystone
+  name: keystone
   net: "host"
   env_file:
    - openstack.env

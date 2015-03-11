@@ -1,10 +1,12 @@
 glanceregistry:
   image: rthallisey/fedora-rdo-glance-registry
+  name: glance-registry
   net: "host"
   env_file:
    - openstack.env
 glanceapi:
   image: rthallisey/fedora-rdo-glance-api
+  name: glance-api
   net: "host"
   env_file:
    - openstack.env
