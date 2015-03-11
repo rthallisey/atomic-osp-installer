@@ -6,6 +6,9 @@ MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') |
 MY_DEV=$(ip route get $(ip route | awk '$1 == "default" {print $3}') |
     awk '$4 == "src" {print $3}')
 
+echo MY_IP=$MY_IP
+echo MY_DEV=$MY_DEV
+
 # Database
 HOST_IP=$MY_IP
 MYSQL_ROOT_PASSWORD=kolla
