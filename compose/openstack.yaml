@@ -1,0 +1,78 @@
+   # Until https://github.com/docker/compose/issues/869 is implemented fig 
+   # can't produce container names like glance_registry, so we are stuck with
+   # glancereg and so have to use an alias in the links here so that
+   # ultimately the *_PORT_*_TCP_ADDR env vars, e.g. 
+   # GLANCE_REGISTRY_PORT_9191_TCP_ADDR, come out in a way that is usable by
+   # fedora-rdo-base/service_hosts.sh
+
+rabbitmq:
+  image: imain/fedora-rdo-rabbitmq
+  name: rabbitmq
+  ports:
+#   - "15672:15672"
+    - "5672:5672"
+  environment:
+   - RABBITMQ_USER=guest
+   - RABBITMQ_PASS=guest
+mariadb:
+  image: imain/fedora-rdo-mariadb
+  name: mariadb
+  ports:
+   - "3306:3306"
+   - "5000:5000"
+  environment:
+   - MYSQL_ROOT_PASSWORD=kolla
+keystone:
+  image: imain/fedora-rdo-keystone
+  links:
+   - mariadb
+  environment:
+   - MARIADB_SERVICE_HOST=10.18.57.121    
+   - ADMIN_TENANT_NAME=admin
+   - KEYSTONE_PUBLIC_SERVICE_HOST=10.18.57.121
+   - KEYSTONE_DB_PASSWORD=kolla
+   - KEYSTONE_ADMIN_PASSWORD=12345
+   - KEYSTONE_ADMIN_TOKEN=12345
+   - KEYSTONE_ADMIN_SERVICE_HOST=10.18.57.121
+   - PUBLIC_IP=10.18.57.121
+   - DB_ROOT_PASSWORD=kolla
+glanceregistry:
+  image: rthallisey/fedora-rdo-glance-registry
+  environment:
+   - ADMIN_TENANT_NAME=admin
+   - GLANCE_DB_NAME=glance
+   - GLANCE_DB_USER=glance
+   - GLANCE_KEYSTONE_USER=glance
+   - KEYSTONE_AUTH_PROTOCOL=httpd
+   - KEYSTONE_PUBLIC_SERVICE_HOST=10.18.57.121
+   - GLANCE_KEYSTONE_PASSWORD=glance
+   - GLANCE_DB_PASSWORD=kolla
+   - MARIADB_SERVICE_HOST=10.18.57.121
+   - KEYSTONE_ADMIN_TOKEN=12345
+   - KEYSTONE_ADMIN_SERVICE_HOST=10.18.57.121
+   - PUBLIC_IP=10.18.57.121
+   - DB_ROOT_PASSWORD=kolla
+   - GLANCE_API_SERVICE_HOST=10.18.57.121
+glanceapi:
+  image: rthallisey/fedora-rdo-glance-api
+  links:
+   - keystone
+   - glanceregistry:glance_registry 
+   - rabbitmq
+  environment:
+   - ADMIN_TENANT_NAME=admin
+   - GLANCE_DB_NAME=glance
+   - GLANCE_DB_USER=glance
+   - GLANCE_KEYSTONE_USER=glance
+   - KEYSTONE_AUTH_PROTOCOL=http
+   - KEYSTONE_PUBLIC_SERVICE_HOST=10.18.57.121
+   - GLANCE_KEYSTONE_PASSWORD=glance
+   - GLANCE_DB_PASSWORD=glance
+   - MARIADB_SERVICE_HOST=10.18.57.121
+   - KEYSTONE_ADMIN_TOKEN=12345
+   - KEYSTONE_ADMIN_SERVICE_HOST=10.18.57.121
+   - KEYSTONE_ADMIN_SERVICE_PORT=5000
+   - PUBLIC_IP=10.18.57.121
+   - DB_ROOT_PASSWORD=kolla
+   - GLANCE_API_SERVICE_HOST=10.18.57.121
+   - KEYSTONE_ADMIN_PASSWORD=kolla
