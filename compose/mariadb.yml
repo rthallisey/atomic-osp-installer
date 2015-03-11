@@ -1,0 +1,6 @@
+mariadb:
+  image: imain/fedora-rdo-mariadb
+  name: mariadb
+  net: "host"
+  env_file:
+   - openstack.env
