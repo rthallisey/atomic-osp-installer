@@ -38,6 +38,8 @@ keystone:
    - DB_ROOT_PASSWORD=kolla
 glanceregistry:
   image: rthallisey/fedora-rdo-glance-registry
+  ports:
+   - "9191:9191"
   environment:
    - ADMIN_TENANT_NAME=admin
    - GLANCE_DB_NAME=glance
@@ -55,9 +57,10 @@ glanceregistry:
    - GLANCE_API_SERVICE_HOST=10.18.57.121
 glanceapi:
   image: rthallisey/fedora-rdo-glance-api
+  ports:
+   - "9292:9292"
   links:
-   - keystone
-   - glanceregistry:glance_registry 
+   - glanceregistry
    - rabbitmq
   environment:
    - ADMIN_TENANT_NAME=admin
@@ -78,32 +81,6 @@ glanceapi:
    - KEYSTONE_ADMIN_PASSWORD=kolla
 novaconductor:
   image: imain/fedora-rdo-nova-conductor:latest
-  links:
-  environment:
-   - KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN
-   - KEYSTONE_ADMIN_SERVICE_HOST=$KEYSTONE_ADMIN_SERVICE_HOST
-   - NOVA_KEYSTONE_USER=$NOVA_KEYSTONE_USER
-   - NOVA_KEYSTONE_PASSWORD=$NOVA_KEYSTONE_PASSWORD
-   - NOVA_API_SERVICE_HOST=$NOVA_API_SERVICE_HOST
-   - NOVA_EC2_SERVICE_HOST=$NOVA_EC2_SERVICE_HOST
-   - ADMIN_TENANT_NAME=$ADMIN_TENANT_NAME
-   - PUBLIC_IP=$HOST_IP
-   - NOVA_DB_USER=$NOVA_DB_USER
-   - NOVA_DB_NAME=$NOVA_DB_NAME
-   - NOVA_DB_PASSWORD=$NOVA_DB_PASSWORD
-   - RABBIT_USERID=$RABBIT_USER
-   - RABBIT_PASSWORD=$RABBIT_PASSWORD
-   - RABBITMQ_SERVICE_HOST=$RABBITMQ_SERVICE_HOST
-   - KEYSTONE_PUBLIC_SERVICE_HOST=$KEYSTONE_PUBLIC_SERVICE_HOST
-   - NETWORK_MANAGER=nova
-   - PUBLIC_INTERFACE=$NOVA_PUBLIC_INTERFACE
-   - FLAT_INTERFACE=$NOVA_FLAT_INTERFACE
-   - MARIADB_SERVICE_HOST=$HOST_IP
-   - GLANCE_API_SERVICE_HOST=$GLANCE_API_SERVICE_HOST
-   - DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
-novascheduler:
-  image: imain/fedora-rdo-nova-scheduler:latest
-  links:
   environment:
    - KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN
    - KEYSTONE_ADMIN_SERVICE_HOST=$KEYSTONE_ADMIN_SERVICE_HOST
@@ -128,9 +105,33 @@ novascheduler:
    - DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
 novaapi:
   image: imain/fedora-rdo-nova-api:latest
-  links:
+  privileged: True
   ports
    - "8774:8774"
+  environment:
+   - KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN
+   - KEYSTONE_ADMIN_SERVICE_HOST=$KEYSTONE_ADMIN_SERVICE_HOST
+   - NOVA_KEYSTONE_USER=$NOVA_KEYSTONE_USER
+   - NOVA_KEYSTONE_PASSWORD=$NOVA_KEYSTONE_PASSWORD
+   - NOVA_API_SERVICE_HOST=$NOVA_API_SERVICE_HOST
+   - NOVA_EC2_SERVICE_HOST=$NOVA_EC2_SERVICE_HOST
+   - ADMIN_TENANT_NAME=$ADMIN_TENANT_NAME
+   - PUBLIC_IP=$HOST_IP
+   - NOVA_DB_USER=$NOVA_DB_USER
+   - NOVA_DB_NAME=$NOVA_DB_NAME
+   - NOVA_DB_PASSWORD=$NOVA_DB_PASSWORD
+   - RABBIT_USERID=$RABBIT_USER
+   - RABBIT_PASSWORD=$RABBIT_PASSWORD
+   - RABBITMQ_SERVICE_HOST=$RABBITMQ_SERVICE_HOST
+   - KEYSTONE_PUBLIC_SERVICE_HOST=$KEYSTONE_PUBLIC_SERVICE_HOST
+   - NETWORK_MANAGER=nova
+   - PUBLIC_INTERFACE=$NOVA_PUBLIC_INTERFACE
+   - FLAT_INTERFACE=$NOVA_FLAT_INTERFACE
+   - MARIADB_SERVICE_HOST=$HOST_IP
+   - GLANCE_API_SERVICE_HOST=$GLANCE_API_SERVICE_HOST
+   - DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
+novascheduler:
+  image: imain/fedora-rdo-nova-scheduler:latest
   environment:
    - KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN
    - KEYSTONE_ADMIN_SERVICE_HOST=$KEYSTONE_ADMIN_SERVICE_HOST
@@ -164,10 +165,8 @@ novaapi:
 #docker run --name nova-compute -d --privileged \
 novacompute:
   image: imain/fedora-rdo-nova-compute:latest
-  links:
   privileged: True
-  ports:
-  volumes::
+  volumes:
    - /sys/fs/cgroup:/sys/fs/cgroup
    - /var/lib/nova:/var/lib/nova
    - /run/libvirt:/run/libvirt
@@ -198,10 +197,8 @@ novacompute:
    - DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
 novanetwork:
   image: imain/fedora-rdo-nova-network:latest
-  links:
   privileged: True
   net: "host"
-  ports
   environment:
    - KEYSTONE_ADMIN_TOKEN=$KEYSTONE_ADMIN_TOKEN
    - KEYSTONE_ADMIN_SERVICE_HOST=$KEYSTONE_ADMIN_SERVICE_HOST
