@@ -29,7 +29,7 @@ do
 done
 
 echo Starting keystone
-docker-compose -f keystone up -d
+docker-compose -f keystone.yml up -d
 
 until keystone user-list
 do
@@ -38,10 +38,10 @@ do
 done
 
 echo Starting glance
-docker-compose -f glance-api-registry.yml -d up
+docker-compose -f glance-api-registry.yml up -d
 
 echo Starting nova
-docker-compose -f nova-api-conductor.yml -d up
+docker-compose -f nova-api-conductor-scheduler.yml up -d
 
 # I think we'll need this..
 #

@@ -2,8 +2,9 @@ libvirt:
    image: kollaglue/fedora-rdo-nova-libvirt
    name: libvirt
    net: host
-   pid: host
    privileged: true
+   env_file:
+    - openstack.env
    volumes:
     - /run:/run
     - /sys/fs/cgroup:/sys/fs/cgroup
@@ -15,6 +16,8 @@ network:
    name: nova-network
    net: host
    privileged: true
+   env_file:
+    - openstack.env
    volumes:
     - /run:/run
     - /sys/fs/cgroup:/sys/fs/cgroup
@@ -25,6 +28,8 @@ compute:
    name: nova-compute
    net: host
    privileged: true
+   env_file:
+    - openstack.env
    volumes:
     - /run:/run
     - /sys/fs/cgroup:/sys/fs/cgroup
