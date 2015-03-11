@@ -1,0 +1,30 @@
+libvirt:
+   image: kollaglue/fedora-rdo-nova-libvirt
+   net: host
+   pid: host
+   privileged: true
+   volumes:
+    - /run:/run
+    - /sys/fs/cgroup:/sys/fs/cgroup
+    - /var/lib/nova:/var/lib/nova
+    - /var/lib/libvirt:/var/lib/libvirt
+    - /etc/libvirt/nwfilter:/etc/libvirt/nwfilter
+network:
+   image: kollaglue/fedora-rdo-nova-network
+   net: host
+   privileged: true
+   volumes:
+    - /run:/run
+    - /sys/fs/cgroup:/sys/fs/cgroup
+    - /var/lib/nova:/var/lib/nova
+    - /var/lib/libvirt:/var/lib/libvirt
+compute:
+   image: kollaglue/fedora-rdo-nova-compute
+   net: host
+   privileged: true
+   volumes:
+    - /run:/run
+    - /sys/fs/cgroup:/sys/fs/cgroup
+    - /var/lib/nova:/var/lib/nova
+    - /var/lib/libvirt:/var/lib/libvirt
+    - /etc/libvirt/nwfilter:/etc/libvirt/nwfilter
