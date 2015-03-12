@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 # Commenting out for now.  DB will just get remade each time in the container.
 #rm -rf /var/lib/mysql
@@ -12,11 +12,13 @@ systemctl stop libvirtd
 #firewall-cmd --add-service=mysql
 
 # Cleanup from previous runs.  Just for iteration purposes for now.
+echo "Stopping any running openstack containers.."
 containers=`docker ps -q`
 if [ ! -z "$containers" ]; then
     docker ps -q | xargs docker stop
 fi
 
+echo "Removing any running openstack containers.."
 containers=`docker ps -qa`
 if [ ! -z "$containers" ]; then
     docker ps -qa | xargs docker rm
@@ -33,13 +35,13 @@ source openrc
 
 ######## RABBITMQ ########
 echo Starting rabbitmq
-docker run -d --name rabbitmq -p 5672:5672 --env-file=openstack.env imain/fedora-rdo-rabbitmq
+${HOST} docker run -d --name rabbitmq -p 5672:5672 --env-file=openstack.env imain/fedora-rdo-rabbitmq
 
 ######## MARIADB ########
 echo Starting mariadb
 docker run -d --name mariadb -p 3306:3306 --env-file=openstack.env imain/fedora-rdo-mariadb
 
-until mysql -u root --password=kolla --host=$MY_IP mysql -e "show tables;"
+until mysql -u root --password=kolla --host=$MY_IP mysql -e "show tables;" 2> /dev/null
 do
     echo waiting for mysql..
     sleep 3
@@ -49,7 +51,7 @@ done
 echo Starting keystone
 docker run -d --name keystone -p 5000:5000 -p 35357:35357 \
        --env-file=openstack.env imain/fedora-rdo-keystone
-until keystone user-list
+until keystone user-list 2> /dev/null
 do
     echo waiting for keystone..
     sleep 3
@@ -66,13 +68,13 @@ docker run --name glance-api -d -p 9292:9292 \
        --env-file=openstack.env rthallisey/fedora-rdo-glance-api:latest
 
 ######## NOVA ########
-echo Starting nova
+echo Starting nova-conductor
 docker run --name nova-conductor -d \
        --env-file=openstack.env imain/fedora-rdo-nova-conductor:latest
 
-until mysql -u root --password=kolla --host=$MY_IP mysql -e "use nova;"
+until mysql -u root --password=kolla --host=$MY_IP mysql -e "use nova;" 2> /dev/null
 do
-    pecho waiting for nova db.
+    echo waiting for nova-conductor to create the database..
     sleep 3
 done
 
@@ -83,10 +85,9 @@ echo Starting nova-api
 docker run --name nova-api -d --privileged -p 8774:8774 \
        --env-file=openstack.env imain/fedora-rdo-nova-api:latest
 
-echo "Waiting for nova-api to create keystone user.."
-until keystone user-list | grep nova
+until keystone user-list | grep nova 2> /dev/null
 do
-    echo waiting for keystone nova user
+    echo waiting for nova-api to create the keystone nova user..
     sleep 2
 done
 
