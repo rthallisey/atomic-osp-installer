@@ -27,6 +27,7 @@ compute:
    image: imain/fedora-rdo-nova-compute
    name: nova-compute
    net: host
+   pid: host
    privileged: true
    env_file:
     - openstack.env
@@ -35,4 +36,4 @@ compute:
     - /sys/fs/cgroup:/sys/fs/cgroup
     - /var/lib/nova:/var/lib/nova
     - /var/lib/libvirt:/var/lib/libvirt
-    - /etc/libvirt/nwfilter:/etc/libvirt/nwfilter
+    - /etc/libvirt/qemu:/etc/libvirt/qemu
