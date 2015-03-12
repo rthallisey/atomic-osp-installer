@@ -5,7 +5,7 @@
 #mkdir -p /var/lib/mysql
 
 #setenforce 0
-chroot $HOST modprobe ebtables
+modprobe ebtables
 
 #systemctl stop libvirtd
 
@@ -43,7 +43,7 @@ chroot ${HOST} docker run -d --name rabbitmq -p 5672:5672 --env-file=/etc/openst
 echo Starting mariadb
 chroot ${HOST} docker run -d --name mariadb -p 3306:3306 --env-file=/etc/openstack.env imain/fedora-rdo-mariadb
 
-until chroot ${HOST} mysql -u root --password=kolla --host=$MY_IP mysql -e "show tables;" 2> /dev/null
+until mysql -u root --password=kolla --host=$MY_IP mysql -e "show tables;" 2> /dev/null
 do
     echo waiting for mysql..
     sleep 3
@@ -53,7 +53,7 @@ done
 echo Starting keystone
 chroot ${HOST} docker run -d --name keystone -p 5000:5000 -p 35357:35357 \
        --env-file=/etc/openstack.env imain/fedora-rdo-keystone
-until chroot ${HOST} keystone user-list 2> /dev/null
+until keystone user-list 2> /dev/null
 do
     echo waiting for keystone..
     sleep 3
@@ -74,7 +74,7 @@ echo Starting nova-conductor
 chroot ${HOST} docker run --name nova-conductor -d \
        --env-file=/etc/openstack.env imain/fedora-rdo-nova-conductor:latest
 
-until chroot ${HOST} mysql -u root --password=kolla --host=$MY_IP mysql -e "use nova;" 2> /dev/null
+until mysql -u root --password=kolla --host=$MY_IP mysql -e "use nova;" 2> /dev/null
 do
     echo waiting for nova-conductor to create the database..
     sleep 3
@@ -87,7 +87,7 @@ echo Starting nova-api
 chroot ${HOST} docker run --name nova-api -d --privileged -p 8774:8774 \
        --env-file=/etc/openstack.env imain/fedora-rdo-nova-api:latest
 
-until chroot ${HOST} keystone user-list | grep nova 2> /dev/null
+until keystone user-list | grep nova 2> /dev/null
 do
     echo waiting for nova-api to create the keystone nova user..
     sleep 2
@@ -95,7 +95,7 @@ done
 
 # This directory is shared with the host to allow qemu instance
 # configs to remain accross restarts.
-mkdir -p /etc/libvirt/qemu
+chroot ${HOST} mkdir -p /etc/libvirt/qemu
 
 # Libvirt is in nova compute for now.
 #echo Starting libvirt
@@ -123,16 +123,17 @@ echo Starting nova-scheduler
 chroot ${HOST} docker run --name nova-scheduler -d \
        --env-file=/etc/openstack.env imain/fedora-rdo-nova-scheduler:latest
 
-#IMAGE_URL=http://download.cirros-cloud.net/0.3.3/
-#IMAGE=cirros-0.3.3-x86_64-disk.img
-#if ! [ -f "$IMAGE" ]; then
-#    curl -o $IMAGE $IMAGE_URL/$IMAGE
-#fi
+IMAGE_URL=http://download.cirros-cloud.net/0.3.3/
+IMAGE=cirros-0.3.3-x86_64-disk.img
+if ! [ -f "$IMAGE" ]; then
+    curl -o $IMAGE $IMAGE_URL/$IMAGE
+fi
+
+sleep 5
 
 #echo "Creating glance image.."
-#glance image-create --name "puffy_clouds" --is-public true --disk-format qcow2 --container-format bare --file $IMAGE
+glance image-create --name "puffy_clouds" --is-public true --disk-format qcow2 --container-format bare --file $IMAGE
 
-#sleep 10
 
 #nova secgroup-add-rule default tcp 22 22 0.0.0.0/0
 #nova secgroup-add-rule default icmp -1 -1 0.0.0.0/0
