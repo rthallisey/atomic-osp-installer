@@ -1,18 +1,18 @@
-libvirt:
-   image: kollaglue/fedora-rdo-nova-libvirt
-   name: libvirt
-   net: host
-   privileged: true
-   env_file:
-    - openstack.env
-   volumes:
-    - /run:/run
-    - /sys/fs/cgroup:/sys/fs/cgroup
-    - /var/lib/nova:/var/lib/nova
-    - /var/lib/libvirt:/var/lib/libvirt
-    - /etc/libvirt/nwfilter:/etc/libvirt/nwfilter
+#libvirt:
+#   image: kollaglue/fedora-rdo-nova-libvirt
+#   name: libvirt
+#   net: host
+#   privileged: true
+#   env_file:
+#    - openstack.env
+#   volumes:
+#    - /run:/run
+#    - /sys/fs/cgroup:/sys/fs/cgroup
+#    - /var/lib/nova:/var/lib/nova
+#    - /var/lib/libvirt:/var/lib/libvirt
+#    - /etc/libvirt/nwfilter:/etc/libvirt/nwfilter
 network:
-   image: kollaglue/fedora-rdo-nova-network
+   image: imain/fedora-rdo-nova-network
    name: nova-network
    net: host
    privileged: true
@@ -24,7 +24,7 @@ network:
     - /var/lib/nova:/var/lib/nova
     - /var/lib/libvirt:/var/lib/libvirt
 compute:
-   image: kollaglue/fedora-rdo-nova-compute
+   image: imain/fedora-rdo-nova-compute
    name: nova-compute
    net: host
    privileged: true
