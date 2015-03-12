@@ -20,7 +20,7 @@ source openrc
 
 echo Starting rabbitmq and mariadb
 docker-compose -f rabbitmq.yml up -d
-docker-compose -f mariadb up -d
+docker-compose -f mariadb.yml up -d
 
 until mysql -u root --password=kolla --host=$MY_IP mysql -e "show tables;"
 do
