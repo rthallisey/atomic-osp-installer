@@ -109,7 +109,7 @@ echo Starting nova compute
 docker run -d --privileged \
        -v /sys/fs/cgroup:/sys/fs/cgroup \
        -v /var/lib/nova:/var/lib/nova \
-       -v /run/libvirt:/run/libvirt \
+       -v /run:/run \
        -v /etc/libvirt/qemu:/etc/libvirt/qemu \
        --pid=host --net=host \
        --env-file=/etc/openstack.env imain/fedora-rdo-nova-compute:latest
