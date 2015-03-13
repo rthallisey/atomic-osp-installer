@@ -7,12 +7,13 @@ services:
 * Mariadb
 * Keystone
 * Glance
+* Nova
 
 Setup
 ===========
 Run the install script.
 ```
-$ sudo ./install.sh
+$ sudo ./start.sh
 ```
 Docker will go out and pull the latest kolla containers and start them up.  After the containers are cached, the next time you stand up openstack it should only take about a minute.
 
@@ -29,8 +30,11 @@ $ keystone user-list
 ```
 $ glance image-list
 ```
+```
+$ nova list
+```
 
-NOTE: The install script pulls from imain's and rthallisey's docker repos for Nova and Glace images.  The Kolla Glance containers will not function properly until the race condition between keystone and glance-api is fixed. https://bugs.launchpad.net/kolla/+bug/1429104
+NOTE: The install script pulls from imain's and rthallisey's docker registries for some of the images.  The change will be merged into the upstream kolla repo and the images rebuild to use the kollaglue namespace.
 
 Debug
 ===========
