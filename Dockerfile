@@ -6,4 +6,5 @@ RUN yum update -y; yum -y install docker mariadb openstack-keystone openstack-no
 LABEL INSTALL="docker run --rm --privileged --net=host -v /:/host -v /var/lib:/var/lib -v /run:/run --env-file=openstack.env -e HOST=/host -e IMAGE=IMAGE -e NAME=NAME --name NAME IMAGE /usr/bin/atomic-start.sh"
 LABEL RUN="echo please execute atomic install IMAGE"
 
+ADD genenv.sh /usr/bin/genenv.sh
 ADD atomic-start.sh /usr/bin/atomic-start.sh

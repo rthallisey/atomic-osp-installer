@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 # Commenting out for now.  DB will just get remade each time in the container.
 #rm -rf /var/lib/mysql
