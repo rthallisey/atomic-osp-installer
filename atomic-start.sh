@@ -14,11 +14,11 @@ chroot ${HOST} modprobe ebtables
 #firewall-cmd --add-service=mysql
 
 # Cleanup from previous runs.  Just for iteration purposes for now.
-echo "Removing any running openstack containers.."
-containers=`docker ps -qa`
-if [ ! -z "$containers" ]; then
-    docker ps -qa | xargs docker rm -f
-fi
+#echo "Removing any running openstack containers.."
+#containers=`docker ps -qa`
+#if [ ! -z "$containers" ]; then
+#    docker ps -qa | xargs docker rm -f
+#fi
 
 # We need these for the user setup commands.
 #yum -y install openstack-keystone openstack-glance openstack-nova mariadb
