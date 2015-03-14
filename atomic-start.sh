@@ -6,7 +6,9 @@
 
 export HOME=/root
 
-#setenforce 0
+# Disable selinux on the host
+chroot ${HOST} setenforce 0
+
 chroot ${HOST} modprobe ebtables
 
 #systemctl stop libvirtd
