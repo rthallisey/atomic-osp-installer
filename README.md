@@ -31,7 +31,7 @@ $ keystone user-list
 $ glance image-list
 ```
 ```
-$ nova list
+$ nova boot --image puffy_clouds --flavor m1.medium instance1
 ```
 
 NOTE: The install script pulls from imain's and rthallisey's docker registries for some of the images.  The change will be merged into the upstream kolla repo and the images rebuild to use the kollaglue namespace.

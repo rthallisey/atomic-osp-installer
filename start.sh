@@ -121,7 +121,7 @@ echo Starting nova-scheduler
 docker run --name nova-scheduler -d \
        --env-file=openstack.env imain/fedora-rdo-nova-scheduler:latest
 
-IMAGE_URL=http://download.cirros-cloud.net/0.3.3/
+IMAGE_URL=http://cdn.download.cirros-cloud.net/0.3.3/
 IMAGE=cirros-0.3.3-x86_64-disk.img
 if ! [ -f "$IMAGE" ]; then
     curl -o $IMAGE $IMAGE_URL/$IMAGE

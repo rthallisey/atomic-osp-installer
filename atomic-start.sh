@@ -131,7 +131,7 @@ if ! [ -f "$IMAGE" ]; then
     curl -o $IMAGE $IMAGE_URL/$IMAGE
 fi
 
-sleep 5
+sleep 10
 
 #echo "Creating glance image.."
 glance image-create --name "puffy_clouds" --is-public true --disk-format qcow2 --container-format bare --file $IMAGE
