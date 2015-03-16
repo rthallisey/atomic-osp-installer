@@ -36,8 +36,8 @@ cp /etc/openstack.env ${HOST}/etc/openstack.env
 
 ######## RABBITMQ ########
 echo Starting rabbitmq
-# atomic install fedora-rdo-rabbitmq-atomic
-docker run -d --name rabbitmq -p 5672:5672 --env-file=/etc/openstack.env imain/fedora-rdo-rabbitmq
+# atomic install centos-rdo-rabbitmq-atomic
+docker run -d --name rabbitmq -p 5672:5672 --env-file=/etc/openstack.env imain/centos-rdo-rabbitmq
 
 ######## MARIADB ########
 echo Starting mariadb
@@ -45,7 +45,7 @@ echo Starting mariadb
 mkdir -p ${HOST}/var/lib/mysql
 mkdir -p ${HOST}/var/log/mariadb
 
-docker run -d --name mariadb --net=host -v /var/lib/mysql:/var/lib/mysql:Z -v /var/log/mariadb:/var/log/mariadb:Z --env-file=/etc/openstack.env imain/fedora-rdo-mariadb
+docker run -d --name mariadb --net=host -v /var/lib/mysql:/var/lib/mysql:Z -v /var/log/mariadb:/var/log/mariadb:Z --env-file=/etc/openstack.env imain/centos-rdo-mariadb
 
 until mysql -u root --password=kolla mysql -e "show tables;"
 do
@@ -56,7 +56,7 @@ done
 ######## KEYSTONE ########
 echo Starting keystone
 docker run -d --name keystone --net=host \
-       --env-file=/etc/openstack.env imain/fedora-rdo-keystone
+       --env-file=/etc/openstack.env imain/centos-rdo-keystone
 until keystone user-list
 do
     echo waiting for keystone..
@@ -66,15 +66,15 @@ done
 ######## GLANCE ########
 echo Starting glance
 docker run --name glance-registry --net=host -d \
-       --env-file=/etc/openstack.env rthallisey/fedora-rdo-glance-registry:latest
+       --env-file=/etc/openstack.env rthallisey/centos-rdo-glance-registry:latest
 
 docker run --name glance-api -d --net=host \
-       --env-file=/etc/openstack.env rthallisey/fedora-rdo-glance-api:latest
+       --env-file=/etc/openstack.env rthallisey/centos-rdo-glance-api:latest
 
 ######## NOVA ########
 echo Starting nova-conductor
 docker run --name nova-conductor -d --net=host\
-       --env-file=/etc/openstack.env imain/fedora-rdo-nova-conductor:latest
+       --env-file=/etc/openstack.env imain/centos-rdo-nova-conductor:latest
 
 until mysql -u root --password=kolla --host=$MY_IP mysql -e "use nova;"
 do
@@ -87,7 +87,7 @@ done
 #permissions.
 echo Starting nova-api
 docker run --name nova-api -d --privileged --net=host \
-       --env-file=/etc/openstack.env imain/fedora-rdo-nova-api:latest
+       --env-file=/etc/openstack.env imain/centos-rdo-nova-api:latest
 
 until keystone user-list | grep nova
 do
@@ -105,7 +105,7 @@ done
 #	-v /sys/fs/cgroup:/sys/fs/cgroup \
 #	-v /var/lib/nova:/var/lib/nova \
 #	--pid=host --net=host \
-#	kollaglue/fedora-rdo-nova-libvirt
+#	kollaglue/centos-rdo-nova-libvirt
 
 echo Starting nova compute
 docker run -d --privileged \
@@ -114,16 +114,16 @@ docker run -d --privileged \
        -v /run:/run \
        -v /etc/libvirt/qemu:/etc/libvirt/qemu \
        --pid=host --net=host \
-       --env-file=/etc/openstack.env imain/fedora-rdo-nova-compute:latest
+       --env-file=/etc/openstack.env imain/centos-rdo-nova-compute:latest
 
 echo Starting nova-network
 docker run --name nova-network -d --privileged \
        --net=host \
-       --env-file=/etc/openstack.env imain/fedora-rdo-nova-network:latest
+       --env-file=/etc/openstack.env imain/centos-rdo-nova-network:latest
 
 echo Starting nova-scheduler
 docker run --name nova-scheduler -d --net=host \
-       --env-file=/etc/openstack.env imain/fedora-rdo-nova-scheduler:latest
+       --env-file=/etc/openstack.env imain/centos-rdo-nova-scheduler:latest
 
 IMAGE_URL=http://cdn.download.cirros-cloud.net/0.3.3/
 IMAGE=cirros-0.3.3-x86_64-disk.img
