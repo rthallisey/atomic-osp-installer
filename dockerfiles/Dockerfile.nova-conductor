@@ -1,0 +1,4 @@
+FROM imain/fedora-rdo-nova-conductor
+MAINTAINER Ryan Hallisey <rhallise@redhat.com>
+
+LABEL INSTALL="docker run --name nova-conductor -d --net=host --env-file=/etc/openstack.env imain/fedora-rdo-nova-conductor"

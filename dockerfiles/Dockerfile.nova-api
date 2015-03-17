@@ -1,0 +1,5 @@
+FROM imain/fedora-rdo-nova-api
+MAINTAINER Ryan Hallisey <rhallise@redhat.com>
+
+LABEL INSTALL="docker run --name nova-api -d --privileged --net=host --env-file=/etc/openstack.env imain/centos-rdo-nova-api:latest"
+
