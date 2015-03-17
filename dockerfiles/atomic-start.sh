@@ -65,9 +65,8 @@ done
 
 ######## GLANCE ########
 echo Starting glance
-atomic install imain/atomin-install-glance-registry
-
-atomic install imain/atomin-install-glance-api
+atomic install imain/atomic-install-glance-registry
+atomic install imain/atomic-install-glance-api
 
 ######## NOVA ########
 echo Starting nova-conductor
