@@ -1,0 +1,5 @@
+FROM imain/fedora-rdo-glance-registry
+MAINTAINER Ryan Hallisey <rhallise@redhat.com>
+
+LABEL INSTALL="docker run --name glance-registry --net=host -d --env-file=/etc/openstack.env rthallisey/centos-rdo-glance-registry:latest"
+
