@@ -1,0 +1,5 @@
+FROM imain/fedora-rdo-nova-network
+MAINTAINER Ryan Hallisey <rhallise@redhat.com>
+
+LABEL INSTALL="docker run --name nova-network -d --privileged \
+               --net=host --env-file=/etc/openstack.env imain/fedora-rdo-nova-network"
