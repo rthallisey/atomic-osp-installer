@@ -1,4 +1,4 @@
 FROM imain/fedora-rdo-rabbitmq
 MAINTAINER Ryan Hallisey <rhallise@redhat.com>
 
-LABEL INSTALL="docker run --rm -d --name rabbitmq --net=host --env-file=/etc/openstack.env imain/fedora-rdo-rabbitmq"
+LABEL INSTALL="docker run -d --name rabbitmq --net=host --env-file=/etc/openstack.env imain/fedora-rdo-rabbitmq"
