@@ -1,4 +1,4 @@
 FROM rthallisey/fedora-rdo-glance-api
 MAINTAINER Ryan Hallisey <rhallise@redhat.com>
 
-LABEL INSTALL="docker run --name glance-api --rm --net=host --env-file=/etc/openstack.env rthallisey/centos-rdo-glance-api:latest"
+LABEL INSTALL="docker run --name glance-api --rm --net=host --env-file=/etc/openstack.env rthallisey/fedora-rdo-glance-api:latest"
