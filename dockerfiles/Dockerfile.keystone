@@ -1,0 +1,4 @@
+FROM imain/fedora-rdo-keystone
+MAINTAINER Ryan Hallisey <rhallise@redhat.com>
+
+LABEL INSTALL="docker run --rm --net=host --env-file=openstack.env --name keystone IMAGE /start.sh"

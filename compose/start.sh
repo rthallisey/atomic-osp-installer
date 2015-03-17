@@ -84,12 +84,10 @@ fi
 echo "Creating glance image.."
 glance image-create --name "puffy_clouds" --is-public true --disk-format qcow2 --container-format bare --file $IMAGE
 
-sleep 10
-
-nova secgroup-add-rule default tcp 22 22 0.0.0.0/0
-nova secgroup-add-rule default icmp -1 -1 0.0.0.0/0
-echo "Setting up network.."
-nova network-create vmnet --fixed-range-v4=10.0.0.0/24 --bridge=br100 --multi-host=T
+#nova secgroup-add-rule default tcp 22 22 0.0.0.0/0
+#nova secgroup-add-rule default icmp -1 -1 0.0.0.0/0
+#echo "Setting up network.."
+#nova network-create vmnet --fixed-range-v4=10.0.0.0/24 --bridge=br100 --multi-host=T
 
 #nova keypair-add mykey > mykey.pem
 #chmod 600 mykey.pem
