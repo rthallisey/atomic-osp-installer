@@ -37,7 +37,7 @@ cp /etc/openstack.env ${HOST}/etc/openstack.env
 ######## RABBITMQ ########
 echo Starting rabbitmq
 # atomic install centos-rdo-rabbitmq-atomic
-atomic install imain/atomin-install-rabbitmq
+atomic install imain/atomic-install-rabbitmq
 
 ######## MARIADB ########
 echo Starting mariadb
@@ -45,7 +45,7 @@ echo Starting mariadb
 mkdir -p ${HOST}/var/lib/mysql
 mkdir -p ${HOST}/var/log/mariadb
 
-atomic install imain/atomin-install-mariadb
+atomic install imain/atomic-install-mariadb
 
 until mysql -u root --password=kolla mysql -e "show tables;"
 do
