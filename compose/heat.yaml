@@ -1,0 +1,6 @@
+heat:
+  image: kollaglue/fedora-rdo-heat
+  name: heat
+  net: "host"
+  env_file:
+   - openstack.env

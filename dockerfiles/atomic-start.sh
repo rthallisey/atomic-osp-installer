@@ -36,6 +36,7 @@ cp /etc/openstack.env ${HOST}/etc/openstack.env
 ######## RABBITMQ ########
 echo Starting rabbitmq
 # atomic install centos-rdo-rabbitmq-atomic
+atomic update imain/atomic-install-rabbitmq
 atomic install imain/atomic-install-rabbitmq
 
 ######## MARIADB ########
@@ -44,6 +45,7 @@ echo Starting mariadb
 mkdir -p ${HOST}/var/lib/mysql
 mkdir -p ${HOST}/var/log/mariadb
 
+atomic update imain/atomic-install-mariadb
 atomic install imain/atomic-install-mariadb
 
 until mysql -u root --password=kolla mysql -e "show tables;"
@@ -54,6 +56,7 @@ done
 
 ######## KEYSTONE ########
 echo Starting keystone
+atomic update imain/atomic-install-keystone
 atomic install imain/atomic-install-keystone
 
 until keystone user-list
@@ -64,11 +67,14 @@ done
 
 ######## GLANCE ########
 echo Starting glance
+atomic update imain/atomic-install-glance-registry
 atomic install imain/atomic-install-glance-registry
+atomic update imain/atomic-install-glance-api
 atomic install imain/atomic-install-glance-api
 
 ######## NOVA ########
 echo Starting nova-conductor
+atomic update imain/atomic-install-nova-conductor
 atomic install imain/atomic-install-nova-conductor
 
 until mysql -u root --password=kolla --host=$MY_IP mysql -e "use nova;"
@@ -81,6 +87,7 @@ done
 # it is running an iptables command which fails because it doesn't have
 #permissions.
 echo Starting nova-api
+atomic update imain/atomic-install-nova-api
 atomic install imain/atomic-install-nova-api
 
 until keystone user-list | grep nova
@@ -102,13 +109,25 @@ done
 #	kollaglue/centos-rdo-nova-libvirt
 
 echo Starting nova compute
+atomic update imain/atomic-install-nova-compute
 atomic install imain/atomic-install-nova-compute
 
 echo Starting nova-network
+atomic update imain/atomic-install-nova-network
 atomic install imain/atomic-install-nova-network
 
 echo Starting nova-scheduler
+atomic update imain/atomic-install-nova-scheduler
 atomic install imain/atomic-install-nova-scheduler
+
+######## HEAT ########
+echo Starting heat-api
+atomic update kollaglue/atomic-install-heat-api
+atomic install kollaglue/atomic-install-heat-api
+
+echo Starting heat-engine
+atomic update kollaglue/atomic-install-heat-engine
+atomic install kollaglue/atomic-install-heat-engine
 
 IMAGE_URL=http://cdn.download.cirros-cloud.net/0.3.3/
 IMAGE=cirros-0.3.3-x86_64-disk.img

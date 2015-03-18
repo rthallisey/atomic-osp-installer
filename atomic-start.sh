@@ -125,6 +125,15 @@ echo Starting nova-scheduler
 docker run --name nova-scheduler -d --net=host \
        --env-file=/etc/openstack.env imain/centos-rdo-nova-scheduler:latest
 
+######## HEAT ########
+echo Starting heat-api
+docker run --name heat-api -d --net=host \
+       --env-file=/etc/openstack.env kollaglue/fedora-rdo-heat-api:latest
+
+echo Starting heat-engine
+docker run --name heat-engine -d --net=host \
+       --env-file=/etc/openstack.env kollaglue/fedora-rdo-heat-engine:latest
+
 IMAGE_URL=http://cdn.download.cirros-cloud.net/0.3.3/
 IMAGE=cirros-0.3.3-x86_64-disk.img
 if ! [ -f "$IMAGE" ]; then
