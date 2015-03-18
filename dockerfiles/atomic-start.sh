@@ -8,7 +8,6 @@ export HOME=/root
 
 # Disable selinux on the host
 chroot ${HOST} setenforce 0
-
 chroot ${HOST} modprobe ebtables
 
 #systemctl stop libvirtd
@@ -37,7 +36,7 @@ cp /etc/openstack.env ${HOST}/etc/openstack.env
 ######## RABBITMQ ########
 echo Starting rabbitmq
 # atomic install centos-rdo-rabbitmq-atomic
-docker run -d --name rabbitmq -p 5672:5672 --env-file=/etc/openstack.env imain/centos-rdo-rabbitmq
+atomic install imain/atomic-install-rabbitmq
 
 ######## MARIADB ########
 echo Starting mariadb
@@ -45,7 +44,7 @@ echo Starting mariadb
 mkdir -p ${HOST}/var/lib/mysql
 mkdir -p ${HOST}/var/log/mariadb
 
-docker run -d --name mariadb --net=host -v /var/lib/mysql:/var/lib/mysql:Z -v /var/log/mariadb:/var/log/mariadb:Z --env-file=/etc/openstack.env imain/centos-rdo-mariadb
+atomic install imain/atomic-install-mariadb
 
 until mysql -u root --password=kolla mysql -e "show tables;"
 do
@@ -55,8 +54,8 @@ done
 
 ######## KEYSTONE ########
 echo Starting keystone
-docker run -d --name keystone --net=host \
-       --env-file=/etc/openstack.env imain/centos-rdo-keystone
+atomic install imain/atomic-install-keystone
+
 until keystone user-list
 do
     echo waiting for keystone..
@@ -65,16 +64,12 @@ done
 
 ######## GLANCE ########
 echo Starting glance
-docker run --name glance-registry --net=host -d \
-       --env-file=/etc/openstack.env rthallisey/centos-rdo-glance-registry:latest
-
-docker run --name glance-api -d --net=host \
-       --env-file=/etc/openstack.env rthallisey/centos-rdo-glance-api:latest
+atomic install imain/atomic-install-glance-registry
+atomic install imain/atomic-install-glance-api
 
 ######## NOVA ########
 echo Starting nova-conductor
-docker run --name nova-conductor -d --net=host\
-       --env-file=/etc/openstack.env imain/centos-rdo-nova-conductor:latest
+atomic install imain/atomic-install-nova-conductor
 
 until mysql -u root --password=kolla --host=$MY_IP mysql -e "use nova;"
 do
@@ -86,8 +81,7 @@ done
 # it is running an iptables command which fails because it doesn't have
 #permissions.
 echo Starting nova-api
-docker run --name nova-api -d --privileged --net=host \
-       --env-file=/etc/openstack.env imain/centos-rdo-nova-api:latest
+atomic install imain/atomic-install-nova-api
 
 until keystone user-list | grep nova
 do
@@ -108,22 +102,13 @@ done
 #	kollaglue/centos-rdo-nova-libvirt
 
 echo Starting nova compute
-docker run -d --privileged \
-       -v /sys/fs/cgroup:/sys/fs/cgroup \
-       -v /var/lib/nova:/var/lib/nova \
-       -v /run:/run \
-       -v /etc/libvirt/qemu:/etc/libvirt/qemu \
-       --pid=host --net=host \
-       --env-file=/etc/openstack.env imain/centos-rdo-nova-compute:latest
+atomic install imain/atomic-install-nova-compute
 
 echo Starting nova-network
-docker run --name nova-network -d --privileged \
-       --net=host \
-       --env-file=/etc/openstack.env imain/centos-rdo-nova-network:latest
+atomic install imain/atomic-install-nova-network
 
 echo Starting nova-scheduler
-docker run --name nova-scheduler -d --net=host \
-       --env-file=/etc/openstack.env imain/centos-rdo-nova-scheduler:latest
+atomic install imain/atomic-install-nova-scheduler
 
 IMAGE_URL=http://cdn.download.cirros-cloud.net/0.3.3/
 IMAGE=cirros-0.3.3-x86_64-disk.img
