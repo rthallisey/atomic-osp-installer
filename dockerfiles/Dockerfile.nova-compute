@@ -1,4 +1,4 @@
-FROM imain/fedora-rdo-nova-compute
+FROM imain/centos-rdo-nova-compute
 MAINTAINER Ryan Hallisey <rhallise@redhat.com>
 
 LABEL INSTALL="docker run -d --name=nova-compute --privileged \
