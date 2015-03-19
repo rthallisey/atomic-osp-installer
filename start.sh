@@ -60,10 +60,10 @@ done
 ######## GLANCE ########
 echo Starting glance
 docker run --name glance-registry --net=host -d --restart=always \
-       --env-file=openstack.env kollaglue/fedora-rdo-glance-registry:latest
+       --env-file=openstack.env rthallisey/fedora-rdo-glance-registry:latest
 
 docker run --name glance-api --net=host -d --restart=always \
-       --env-file=openstack.env kollaglue/fedora-rdo-glance-api:latest
+       --env-file=openstack.env rthallisey/fedora-rdo-glance-api:latest
 
 ######## NOVA ########
 echo Starting nova-conductor
@@ -146,13 +146,14 @@ fi
 echo "Creating glance image.."
 glance image-create --name "puffy_clouds" --is-public true --disk-format qcow2 --container-format bare --file $IMAGE
 
-sleep 10
-
-nova secgroup-add-rule default tcp 22 22 0.0.0.0/0
-nova secgroup-add-rule default icmp -1 -1 0.0.0.0/0
-#echo "Setting up network.."
+#nova secgroup-add-rule default tcp 22 22 0.0.0.0/0
+#nova secgroup-add-rule default icmp -1 -1 0.0.0.0/0
 #nova network-create vmnet --fixed-range-v4=10.0.0.0/24 --bridge=br100 --multi-host=T
 
 #nova keypair-add mykey > mykey.pem
 #chmod 600 mykey.pem
 #nova boot --flavor m1.medium --key_name mykey --image puffy_clouds newInstanceName
+
+#docker exec nova-network nova-manage floating create --pool nova --ip_range 172.31.0.128/30
+#nova floating-ip-create nova
+#nova floating-ip-associate test1 172.31.0.90
