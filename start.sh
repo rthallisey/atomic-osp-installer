@@ -35,7 +35,7 @@ source openrc
 
 ######## RABBITMQ ########
 echo Starting rabbitmq
-${HOST} docker run -d --name rabbitmq --net=host --env-file=openstack.env imain/fedora-rdo-rabbitmq
+docker run -d --name rabbitmq --net=host --env-file=openstack.env imain/fedora-rdo-rabbitmq
 
 ######## MARIADB ########
 echo Starting mariadb
@@ -59,11 +59,11 @@ done
 
 ######## GLANCE ########
 echo Starting glance
-docker run --name glance-registry --net=host -d \
-       --env-file=openstack.env rthallisey/fedora-rdo-glance-registry:latest
+docker run --name glance-registry --net=host -d --restart=always \
+       --env-file=openstack.env kollaglue/fedora-rdo-glance-registry:latest
 
-docker run --name glance-api --net=host -d \
-       --env-file=openstack.env rthallisey/fedora-rdo-glance-api:latest
+docker run --name glance-api --net=host -d --restart=always \
+       --env-file=openstack.env kollaglue/fedora-rdo-glance-api:latest
 
 ######## NOVA ########
 echo Starting nova-conductor
@@ -131,6 +131,11 @@ echo Starting heat-engine
 docker run --name heat-engine -d \
        --net=host \
        --env-file=openstack.env kollaglue/fedora-rdo-heat-engine:latest
+
+#echo Starting horizon
+#docker run --name horizon -d \
+#       --net=host \
+#       --env-file=openstack.env kollaglue/fedora-rdo-horizon:latest
 
 IMAGE_URL=http://cdn.download.cirros-cloud.net/0.3.3/
 IMAGE=cirros-0.3.3-x86_64-disk.img
