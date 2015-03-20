@@ -8,7 +8,7 @@ setenforce 0
 modprobe ebtables
 
 # Might need this for heat.
-# iptables -A INPUT -i br100 -p tcp -m state --state NEW -m tcp --dport 8000 -j ACCEPT
+# sudo iptables -A IN_FedoraServer_allow -p tcp -m multiport --dports 8000,8003,8004 --jump ACCEPT
 
 systemctl stop libvirtd
 
