@@ -15,10 +15,17 @@ parameters:
     description: The password for RabbitMQ
     type: string
     hidden: true
+
   RabbitUserName:
     default: guest
     description: The username for RabbitMQ
     type: string
+
+  MysqlRootPassword:
+    type: string
+    description: The password for the DB
+    hidden: true
+    default: unset
 
 resources:
   server:
@@ -56,10 +63,11 @@ resources:
       - name: RABBITMQ_USER
       config: |
         #!/bin/bash
-        env  | grep "^RABBIT" > /tmp/openstack.env
+        # FIXME(shardy) pre-build images via docker pull to speed up deployment
+        env  | grep "^RABBIT" > /tmp/mariadb.env
         MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
-        echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /tmp/openstack.env
-        echo "docker run -d --name rabbitmq --net=host --env-file=/tmp/openstack.env imain/fedora-rdo-rabbitmq" > /tmp/test.sh
+        echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /tmp/rabbit.env
+        docker run -d --name rabbitmq --net=host --env-file=/tmp/rabbit.env imain/fedora-rdo-rabbitmq | tee /tmp/test.log1
 
   rabbit_deployment:
     type: OS::Heat::SoftwareDeployment
@@ -72,4 +80,29 @@ resources:
       input_values:
         RABBITMQ_PASS: {get_param: RabbitPassword}
         RABBITMQ_USER: {get_param: RabbitUserName}
+
+  mariadb_config:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      inputs:
+      - name: MYSQL_ROOT_PASSWORD
+      config: |
+        #!/bin/bash
+        # FIXME(shardy) pre-build images via docker pull to speed up deployment
+        env  | grep "^MYSQL" > /tmp/mariadb.env
+        MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
+        echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/mariadb.env
+        docker run -d --name mariadb --net=host --env-file=/tmp/mariadb.env imain/fedora-rdo-mariadb | tee /tmp/test.log2
+
+  mariadb_deployment:
+    type: OS::Heat::SoftwareDeployment
+    depends_on: rabbit_deployment
+    properties:
+      config:
+        get_resource: mariadb_config
+      server:
+        get_resource: server
+      input_values:
+        MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
 
