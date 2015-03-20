@@ -1,0 +1,75 @@
+heat_template_version: 2014-10-16
+parameters:
+  key_name:
+    type: string
+    default: default
+  flavor:
+    type: string
+    default: m1.small
+  image:
+    type: string
+    default: fedora-software-config
+
+  RabbitPassword:
+    default: guest
+    description: The password for RabbitMQ
+    type: string
+    hidden: true
+  RabbitUserName:
+    default: guest
+    description: The username for RabbitMQ
+    type: string
+
+resources:
+  server:
+    type: OS::Nova::Server
+    properties:
+      image: {get_param: image}
+      flavor: {get_param: flavor}
+      key_name: {get_param: key_name}
+      user_data_format: SOFTWARE_CONFIG
+
+  docker_config:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      config: |
+        #!/bin/bash
+        # FIXME(shardy): build into the image via diskimage-builder
+        yum -y install docker-io
+        systemctl start docker
+
+  docker_deployment:
+    type: OS::Heat::SoftwareDeployment
+    properties:
+      config:
+        get_resource: docker_config
+      server:
+        get_resource: server
+
+  rabbit_config:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      inputs:
+      - name: RABBITMQ_PASS
+      - name: RABBITMQ_USER
+      config: |
+        #!/bin/bash
+        env  | grep "^RABBIT" > /tmp/openstack.env
+        MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
+        echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /tmp/openstack.env
+        echo "docker run -d --name rabbitmq --net=host --env-file=/tmp/openstack.env imain/fedora-rdo-rabbitmq" > /tmp/test.sh
+
+  rabbit_deployment:
+    type: OS::Heat::SoftwareDeployment
+    depends_on: docker_deployment
+    properties:
+      config:
+        get_resource: rabbit_config
+      server:
+        get_resource: server
+      input_values:
+        RABBITMQ_PASS: {get_param: RabbitPassword}
+        RABBITMQ_USER: {get_param: RabbitUserName}
+
