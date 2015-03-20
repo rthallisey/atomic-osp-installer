@@ -128,12 +128,12 @@ docker run --name nova-scheduler -d \
 echo Starting heat-api
 docker run --name heat-api -d \
        --net=host \
-       --env-file=openstack.env kollaglue/fedora-rdo-heat-api:latest
+       --env-file=openstack.env rthallisey/fedora-rdo-heat-api:latest
 
 echo Starting heat-engine
 docker run --name heat-engine -d \
        --net=host \
-       --env-file=openstack.env kollaglue/fedora-rdo-heat-engine:latest
+       --env-file=openstack.env rthallisey/fedora-rdo-heat-engine:latest
 
 #echo Starting horizon
 #docker run --name horizon -d \
