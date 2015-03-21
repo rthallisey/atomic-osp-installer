@@ -15,16 +15,10 @@ systemctl stop libvirtd
 #firewall-cmd --add-service=mysql
 
 # Cleanup from previous runs.  Just for iteration purposes for now.
-echo "Stopping any running openstack containers.."
-containers=`docker ps -q`
-if [ ! -z "$containers" ]; then
-    docker ps -q | xargs docker stop
-fi
-
 echo "Removing any running openstack containers.."
 containers=`docker ps -qa`
 if [ ! -z "$containers" ]; then
-    docker ps -qa | xargs docker rm
+    docker ps -qa | xargs docker rm -f
 fi
 
 # We need these for the user setup commands.
