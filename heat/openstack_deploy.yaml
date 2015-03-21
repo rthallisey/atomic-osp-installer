@@ -191,11 +191,12 @@ resources:
       config: |
         #!/bin/bash
         # FIXME(shardy) pre-build images via docker pull to speed up deployment
-        env | grep "^KEYSTONE" > /tmp/keystone.env
+        #env | grep "^KEYSTONE" > /tmp/keystone.env
+        env > /tmp/keystone.env
         MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
         echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/keystone.env
         echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/keystone.env
-        echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/mariadb.env
+        echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/keystone.env
         docker run -d --name keystone --net=host --env-file=/tmp/keystone.env imain/fedora-rdo-keystone | tee /tmp/keystone.log
 
   keystone_deployment:
