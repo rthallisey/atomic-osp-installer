@@ -365,3 +365,56 @@ resources:
         KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
         ADMIN_TENANT_NAME: {get_param: AdminTenantName}
         DB_ROOT_PASSWORD: {get_param: DBRootPassword}
+
+  nova_api_config:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      inputs:
+      - name: MYSQL_ROOT_PASSWORD
+      - name: NOVA_KEYSTONE_PASSWORD
+      - name: NOVA_KEYSTONE_USER
+      - name: NOVA_DB_USER
+      - name: NOVA_DB_NAME
+      - name: KEYSTONE_ADMIN_PASSWORD
+      - name: KEYSTONE_ADMIN_SERVICE_PORT
+      - name: KEYSTONE_ADMIN_TOKEN
+      - name: KEYSTONE_AUTH_PROTOCOL
+      - name: KEYSTONE_DB_PASSWORD
+      - name: ADMIN_TENANT_NAME
+      - name: DB_ROOT_PASSWORD
+      config: |
+        #!/bin/bash
+        # FIXME(shardy) pre-build images via docker pull to speed up deployment
+        #env | grep "^NOVA" > /tmp/nova-api.env
+        env > /tmp/nova-api.env
+        MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
+        echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
+        echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
+        echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
+        echo "NOVA_REGISTRY_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
+        echo "NOVA_API_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
+        echo "PUBLIC_IP=$MY_IP" >> /tmp/nova-api.env
+        docker run -d --name nova-api --net=host --env-file=/tmp/nova-api.env rthallisey/fedora-rdo-nova-api | tee /tmp/nova-api.log
+
+  nova_api_deployment:
+    type: OS::Heat::SoftwareDeployment
+    depends_on: nova_conductor_deployment
+    properties:
+      config:
+        get_resource: nova_api_config
+      server:
+        get_resource: server
+      input_values:
+        MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
+        NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
+        NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
+        NOVA_DB_USER: {get_param: NovaDBUser}
+        NOVA_DB_NAME: {get_param: NovaDBName}
+        NOVA_DB_PASSWORD: {get_param: NovaDBPassword}
+        KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
+        KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
+        KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
+        KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
+        ADMIN_TENANT_NAME: {get_param: AdminTenantName}
+        DB_ROOT_PASSWORD: {get_param: DBRootPassword}
