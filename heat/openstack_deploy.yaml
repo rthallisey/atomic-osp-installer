@@ -13,6 +13,8 @@ parameters:
     type: string
     default: fedora-software-config
 
+## Rabbit ##
+
   RabbitPassword:
     default: guest
     description: The password for RabbitMQ
@@ -23,6 +25,13 @@ parameters:
     default: guest
     description: The username for RabbitMQ
     type: string
+
+  RabbitUserName:
+    default: guest
+    description: The username for RabbitMQ
+    type: string
+
+## Mysql ##
 
   MysqlRootPassword:
     type: string
@@ -91,6 +100,32 @@ parameters:
     description: The admin username for Keystone
     type: string
 
+## Glance ##
+
+  GlanceKeystoneUser:
+    default: glance
+    description: The admin username for Keystone
+    type: string
+
+  GlanceKeystonePassword:
+    default: glance
+    description: The admin username for Keystone
+    type: string
+
+  GlanceDBUser:
+    default: glance
+    description: The admin username for Keystone
+    type: string
+
+  GlanceDBPassword:
+    default: kolla
+    description: The admin username for Keystone
+    type: string
+
+  GlanceDBName:
+    default: glance
+    description: The admin username for Keystone
+    type: string
 
 resources:
   server:
@@ -218,5 +253,115 @@ resources:
         KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
         NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
         NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
+        ADMIN_TENANT_NAME: {get_param: AdminTenantName}
+        DB_ROOT_PASSWORD: {get_param: DBRootPassword}
+
+  glance_api_config:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      inputs:
+      - name: MYSQL_ROOT_PASSWORD
+      - name: GLANCE_KEYSTONE_PASSWORD
+      - name: GLANCE_KEYSTONE_USER
+      - name: GLANCE_DB_USER
+      - name: GLANCE_DB_NAME
+      - name: KEYSTONE_ADMIN_PASSWORD
+      - name: KEYSTONE_ADMIN_SERVICE_PORT
+      - name: KEYSTONE_ADMIN_TOKEN
+      - name: KEYSTONE_AUTH_PROTOCOL
+      - name: KEYSTONE_DB_PASSWORD
+      - name: NOVA_KEYSTONE_PASSWORD
+      - name: NOVA_KEYSTONE_USER
+      - name: ADMIN_TENANT_NAME
+      - name: DB_ROOT_PASSWORD
+      config: |
+        #!/bin/bash
+        # FIXME(shardy) pre-build images via docker pull to speed up deployment
+        #env | grep "^GLANCE" > /tmp/glance-api.env
+        env > /tmp/glance-api.env
+        MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
+        echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/glance-api.env
+        echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/glance-api.env
+        echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/glance-api.env
+        echo "GLANCE_REGISTRY_SERVICE_HOST=$MY_IP" >> /tmp/glance-api.env
+        echo "GLANCE_API_SERVICE_HOST=$MY_IP" >> /tmp/glance-api.env
+        echo "PUBLIC_IP=$MY_IP" >> /tmp/glance-api.env
+        docker run -d --name glance-api --net=host --env-file=/tmp/glance-api.env kollaglue/fedora-rdo-glance-api | tee /tmp/glance-api.log
+
+  glance_api_deployment:
+    type: OS::Heat::SoftwareDeployment
+    depends_on: keystone_deployment
+    properties:
+      config:
+        get_resource: glance_api_config
+      server:
+        get_resource: server
+      input_values:
+        MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
+        GLANCE_KEYSTONE_PASSWORD: {get_param: GlanceKeystonePassword}
+        GLANCE_KEYSTONE_USER: {get_param: GlanceKeystoneUser}
+        GLANCE_DB_USER: {get_param: GlanceDBUser}
+        GLANCE_DB_NAME: {get_param: GlanceDBName}
+        GLANCE_DB_PASSWORD: {get_param: GlanceDBPassword}
+        KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
+        KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
+        KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
+        KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
+        ADMIN_TENANT_NAME: {get_param: AdminTenantName}
+        DB_ROOT_PASSWORD: {get_param: DBRootPassword}
+
+  glance_registry_config:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      inputs:
+      - name: MYSQL_ROOT_PASSWORD
+      - name: GLANCE_KEYSTONE_PASSWORD
+      - name: GLANCE_KEYSTONE_USER
+      - name: GLANCE_DB_USER
+      - name: GLANCE_DB_NAME
+      - name: KEYSTONE_ADMIN_PASSWORD
+      - name: KEYSTONE_ADMIN_SERVICE_PORT
+      - name: KEYSTONE_ADMIN_TOKEN
+      - name: KEYSTONE_AUTH_PROTOCOL
+      - name: KEYSTONE_DB_PASSWORD
+      - name: NOVA_KEYSTONE_PASSWORD
+      - name: NOVA_KEYSTONE_USER
+      - name: ADMIN_TENANT_NAME
+      - name: DB_ROOT_PASSWORD
+      config: |
+        #!/bin/bash
+        # FIXME(shardy) pre-build images via docker pull to speed up deployment
+        #env | grep "^GLANCE" > /tmp/glance-registry.env
+        env > /tmp/glance-registry.env
+        MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
+        echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/glance-registry.env
+        echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/glance-registry.env
+        echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/glance-registry.env
+        echo "GLANCE_REGISTRY_SERVICE_HOST=$MY_IP" >> /tmp/glance-registry.env
+        echo "GLANCE_API_SERVICE_HOST=$MY_IP" >> /tmp/glance-registry.env
+        echo "PUBLIC_IP=$MY_IP" >> /tmp/glance-registry.env
+        docker run -d --name glance-registry --net=host --env-file=/tmp/glance-registry.env rthallisey/fedora-rdo-glance-registry | tee /tmp/glance-registry.log
+
+  glance_registry_deployment:
+    type: OS::Heat::SoftwareDeployment
+    depends_on: keystone_deployment
+    properties:
+      config:
+        get_resource: glance_registry_config
+      server:
+        get_resource: server
+      input_values:
+        MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
+        GLANCE_KEYSTONE_PASSWORD: {get_param: GlanceKeystonePassword}
+        GLANCE_KEYSTONE_USER: {get_param: GlanceKeystoneUser}
+        GLANCE_DB_USER: {get_param: GlanceDBUser}
+        GLANCE_DB_NAME: {get_param: GlanceDBName}
+        GLANCE_DB_PASSWORD: {get_param: GlanceDBPassword}
+        KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
+        KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
+        KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
+        KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
         ADMIN_TENANT_NAME: {get_param: AdminTenantName}
         DB_ROOT_PASSWORD: {get_param: DBRootPassword}
