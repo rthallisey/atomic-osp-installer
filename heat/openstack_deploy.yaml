@@ -12,6 +12,9 @@ parameters:
   image:
     type: string
     default: fedora-software-config
+  docker_registry:
+    type: string
+    default: 10.18.57.151:8080
 
 ## Rabbit ##
 
@@ -167,10 +170,14 @@ resources:
     type: OS::Heat::SoftwareConfig
     properties:
       group: script
+      inputs:
+      - name: DOCKER_REGISTRY
       config: |
         #!/bin/bash
         # FIXME(shardy): build into the image via diskimage-builder
         yum -y install docker-io
+        sed -ri "s/OPTIONS='--selinux-enabled'/OPTIONS='--insecure-registry 10.18.57.151:8080 --selinux-enabled'/" test
+        echo "--insecure-registry $DOCKER_REGISTRY --selinux-enabled" >> /etc/sysconfig/docker
         systemctl start docker
 
   docker_deployment:
@@ -180,12 +187,15 @@ resources:
         get_resource: docker_config
       server:
         get_resource: server
+      input_values:
+        DOCKER_REGISTRY: {get_param: docker_registry}
 
   rabbit_config:
     type: OS::Heat::SoftwareConfig
     properties:
       group: script
       inputs:
+      - name: DOCKER_REGISTRY
       - name: RABBITMQ_PASS
       - name: RABBITMQ_USER
       config: |
@@ -194,7 +204,7 @@ resources:
         env  | grep "^RABBIT" > /tmp/rabbit.env
         MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
         echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /tmp/rabbit.env
-        docker run -d --name rabbitmq --net=host --env-file=/tmp/rabbit.env imain/fedora-rdo-rabbitmq | tee /tmp/rabbit.log
+        docker run -d --name rabbitmq --net=host --env-file=/tmp/rabbit.env $DOCKER_REGISTRY/fedora-rdo-rabbitmq | tee /tmp/rabbit.log
 
   rabbit_deployment:
     type: OS::Heat::SoftwareDeployment
@@ -205,6 +215,7 @@ resources:
       server:
         get_resource: server
       input_values:
+        DOCKER_REGISTRY: {get_param: docker_registry}
         RABBITMQ_PASS: {get_param: RabbitPassword}
         RABBITMQ_USER: {get_param: RabbitUserName}
 
@@ -213,6 +224,7 @@ resources:
     properties:
       group: script
       inputs:
+      - name: DOCKER_REGISTRY
       - name: MYSQL_ROOT_PASSWORD
       config: |
         #!/bin/bash
@@ -220,7 +232,7 @@ resources:
         env  | grep "^MYSQL" > /tmp/mariadb.env
         MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
         echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/mariadb.env
-        docker run -d --name mariadb --net=host --env-file=/tmp/mariadb.env imain/fedora-rdo-mariadb | tee /tmp/mariadb.log
+        docker run -d --name mariadb --net=host --env-file=/tmp/mariadb.env $DOCKER_REGISTRY/fedora-rdo-mariadb | tee /tmp/mariadb.log
 
   mariadb_deployment:
     type: OS::Heat::SoftwareDeployment
@@ -231,6 +243,7 @@ resources:
       server:
         get_resource: server
       input_values:
+        DOCKER_REGISTRY: {get_param: docker_registry}
         MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
 
   keystone_config:
@@ -238,6 +251,7 @@ resources:
     properties:
       group: script
       inputs:
+      - name: DOCKER_REGISTRY
       - name: MYSQL_ROOT_PASSWORD
       - name: GLANCE_KEYSTONE_PASSWORD
       - name: GLANCE_KEYSTONE_USER
@@ -259,7 +273,7 @@ resources:
         echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/keystone.env
         echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/keystone.env
         echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/keystone.env
-        docker run -d --name keystone --net=host --env-file=/tmp/keystone.env imain/fedora-rdo-keystone | tee /tmp/keystone.log
+        docker run -d --name keystone --net=host --env-file=/tmp/keystone.env $DOCKER_REGISTRY/fedora-rdo-keystone | tee /tmp/keystone.log
 
   keystone_deployment:
     type: OS::Heat::SoftwareDeployment
@@ -270,6 +284,7 @@ resources:
       server:
         get_resource: server
       input_values:
+        DOCKER_REGISTRY: {get_param: docker_registry}
         MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
         GLANCE_KEYSTONE_PASSWORD: {get_param: GlanceKeystonePassword}
         GLANCE_KEYSTONE_USER: {get_param: GlanceKeystoneUser}
@@ -288,6 +303,7 @@ resources:
     properties:
       group: script
       inputs:
+      - name: DOCKER_REGISTRY
       - name: MYSQL_ROOT_PASSWORD
       - name: GLANCE_KEYSTONE_PASSWORD
       - name: GLANCE_KEYSTONE_USER
@@ -314,7 +330,7 @@ resources:
         echo "GLANCE_REGISTRY_SERVICE_HOST=$MY_IP" >> /tmp/glance-api.env
         echo "GLANCE_API_SERVICE_HOST=$MY_IP" >> /tmp/glance-api.env
         echo "PUBLIC_IP=$MY_IP" >> /tmp/glance-api.env
-        docker run -d --name glance-api --net=host --env-file=/tmp/glance-api.env kollaglue/fedora-rdo-glance-api | tee /tmp/glance-api.log
+        docker run -d --name glance-api --net=host --env-file=/tmp/glance-api.env $DOCKER_REGISTRY/fedora-rdo-glance-api | tee /tmp/glance-api.log
 
   glance_api_deployment:
     type: OS::Heat::SoftwareDeployment
@@ -325,6 +341,7 @@ resources:
       server:
         get_resource: server
       input_values:
+        DOCKER_REGISTRY: {get_param: docker_registry}
         MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
         GLANCE_KEYSTONE_PASSWORD: {get_param: GlanceKeystonePassword}
         GLANCE_KEYSTONE_USER: {get_param: GlanceKeystoneUser}
@@ -343,6 +360,7 @@ resources:
     properties:
       group: script
       inputs:
+      - name: DOCKER_REGISTRY
       - name: MYSQL_ROOT_PASSWORD
       - name: GLANCE_KEYSTONE_PASSWORD
       - name: GLANCE_KEYSTONE_USER
@@ -369,7 +387,7 @@ resources:
         echo "GLANCE_REGISTRY_SERVICE_HOST=$MY_IP" >> /tmp/glance-registry.env
         echo "GLANCE_API_SERVICE_HOST=$MY_IP" >> /tmp/glance-registry.env
         echo "PUBLIC_IP=$MY_IP" >> /tmp/glance-registry.env
-        docker run -d --name glance-registry --net=host --env-file=/tmp/glance-registry.env rthallisey/fedora-rdo-glance-registry | tee /tmp/glance-registry.log
+        docker run -d --name glance-registry --net=host --env-file=/tmp/glance-registry.env $DOCKER_REGISTRY/fedora-rdo-glance-registry| tee /tmp/glance-registry.log
 
   glance_registry_deployment:
     type: OS::Heat::SoftwareDeployment
@@ -380,6 +398,7 @@ resources:
       server:
         get_resource: server
       input_values:
+        DOCKER_REGISTRY: {get_param: docker_registry}
         MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
         GLANCE_KEYSTONE_PASSWORD: {get_param: GlanceKeystonePassword}
         GLANCE_KEYSTONE_USER: {get_param: GlanceKeystoneUser}
@@ -398,6 +417,7 @@ resources:
     properties:
       group: script
       inputs:
+      - name: DOCKER_REGISTRY
       - name: MYSQL_ROOT_PASSWORD
       - name: NOVA_KEYSTONE_PASSWORD
       - name: NOVA_KEYSTONE_USER
@@ -428,7 +448,7 @@ resources:
         echo "NOVA_EC2_API_SERVICE_HOST=$MY_IP" >> /tmp/nova-conductor.env
         echo "NOVA_EC2_SERVICE_HOST=$MY_IP" >> /tmp/nova-conductor.env
         echo "PUBLIC_IP=$MY_IP" >> /tmp/nova-conductor.env
-        docker run -d --name nova-conductor --net=host --env-file=/tmp/nova-conductor.env imain/fedora-rdo-nova-conductor | tee /tmp/nova-conductor.log
+        docker run -d --name nova-conductor --net=host --env-file=/tmp/nova-conductor.env $DOCKER_REGISTRY/fedora-rdo-nova-conductor | tee /tmp/nova-conductor.log
 
   nova_conductor_deployment:
     type: OS::Heat::SoftwareDeployment
@@ -439,6 +459,7 @@ resources:
       server:
         get_resource: server
       input_values:
+        DOCKER_REGISTRY: {get_param: docker_registry}
         MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
         NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
         NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
@@ -458,6 +479,7 @@ resources:
     properties:
       group: script
       inputs:
+      - name: DOCKER_REGISTRY
       - name: MYSQL_ROOT_PASSWORD
       - name: NOVA_KEYSTONE_PASSWORD
       - name: NOVA_KEYSTONE_USER
@@ -488,7 +510,7 @@ resources:
         echo "NOVA_EC2_API_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
         echo "NOVA_EC2_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
         echo "PUBLIC_IP=$MY_IP" >> /tmp/nova-api.env
-        docker run -d --name nova-api --net=host --env-file=/tmp/nova-api.env imain/fedora-rdo-nova-api | tee /tmp/nova-api.log
+        docker run -d --name nova-api --net=host --env-file=/tmp/nova-api.env $DOCKER_REGISTRY/fedora-rdo-nova-api | tee /tmp/nova-api.log
 
   nova_api_deployment:
     type: OS::Heat::SoftwareDeployment
@@ -499,6 +521,7 @@ resources:
       server:
         get_resource: server
       input_values:
+        DOCKER_REGISTRY: {get_param: docker_registry}
         MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
         NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
         NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
@@ -519,6 +542,7 @@ resources:
     properties:
       group: script
       inputs:
+      - name: DOCKER_REGISTRY
       - name: MYSQL_ROOT_PASSWORD
       - name: NOVA_KEYSTONE_PASSWORD
       - name: NOVA_KEYSTONE_USER
@@ -549,7 +573,7 @@ resources:
         echo "NOVA_EC2_COMPUTE_SERVICE_HOST=$MY_IP" >> /tmp/nova-compute.env
         echo "NOVA_EC2_SERVICE_HOST=$MY_IP" >> /tmp/nova-compute.env
         echo "PUBLIC_IP=$MY_IP" >> /tmp/nova-compute.env
-        docker run -d --name nova-compute --net=host --env-file=/tmp/nova-compute.env imain/fedora-rdo-nova-compute | tee /tmp/nova-compute.log
+        docker run -d --privileged --name nova-compute --net=host --env-file=/tmp/nova-compute.env $DOCKER_REGISTRY/fedora-rdo-nova-compute | tee /tmp/nova-compute.log
 
   nova_compute_deployment:
     type: OS::Heat::SoftwareDeployment
@@ -560,6 +584,7 @@ resources:
       server:
         get_resource: server
       input_values:
+        DOCKER_REGISTRY: {get_param: docker_registry}
         MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
         NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
         NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
@@ -579,6 +604,7 @@ resources:
     properties:
       group: script
       inputs:
+      - name: DOCKER_REGISTRY
       - name: MYSQL_ROOT_PASSWORD
       - name: NOVA_KEYSTONE_PASSWORD
       - name: NOVA_KEYSTONE_USER
@@ -609,7 +635,7 @@ resources:
         echo "NOVA_EC2_SCHEDULER_SERVICE_HOST=$MY_IP" >> /tmp/nova-scheduler.env
         echo "NOVA_EC2_SERVICE_HOST=$MY_IP" >> /tmp/nova-scheduler.env
         echo "PUBLIC_IP=$MY_IP" >> /tmp/nova-scheduler.env
-        docker run -d --name nova-scheduler --net=host --env-file=/tmp/nova-scheduler.env imain/fedora-rdo-nova-scheduler | tee /tmp/nova-scheduler.log
+        docker run -d --name nova-scheduler --net=host --env-file=/tmp/nova-scheduler.env $DOCKER_REGISTRY/fedora-rdo-nova-scheduler | tee /tmp/nova-scheduler.log
 
   nova_scheduler_deployment:
     type: OS::Heat::SoftwareDeployment
@@ -620,6 +646,7 @@ resources:
       server:
         get_resource: server
       input_values:
+        DOCKER_REGISTRY: {get_param: docker_registry}
         MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
         NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
         NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
@@ -639,6 +666,7 @@ resources:
     properties:
       group: script
       inputs:
+      - name: DOCKER_REGISTRY
       - name: MYSQL_ROOT_PASSWORD
       - name: NOVA_KEYSTONE_PASSWORD
       - name: NOVA_KEYSTONE_USER
@@ -669,7 +697,7 @@ resources:
         echo "NOVA_EC2_NETWORK_SERVICE_HOST=$MY_IP" >> /tmp/nova-network.env
         echo "NOVA_EC2_SERVICE_HOST=$MY_IP" >> /tmp/nova-network.env
         echo "PUBLIC_IP=$MY_IP" >> /tmp/nova-network.env
-        docker run -d --name nova-network --net=host --env-file=/tmp/nova-network.env imain/fedora-rdo-nova-network | tee /tmp/nova-network.log
+        docker run -d --privileged --name nova-network --net=host --env-file=/tmp/nova-network.env $DOCKER_REGISTRY/fedora-rdo-nova-network | tee /tmp/nova-network.log
 
   nova_network_deployment:
     type: OS::Heat::SoftwareDeployment
@@ -680,6 +708,7 @@ resources:
       server:
         get_resource: server
       input_values:
+        DOCKER_REGISTRY: {get_param: docker_registry}
         MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
         NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
         NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
