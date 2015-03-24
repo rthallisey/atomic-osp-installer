@@ -15,6 +15,7 @@ containers=(centos-rdo-rabbitmq
 	   )
 
 REGISTRY_PORT=8080
+IP=10.18.57.151
 
 #echo $containers
 for i in "${containers[@]}"; do 
@@ -22,9 +23,9 @@ for i in "${containers[@]}"; do
 done
 
 for i in "${containers[@]}"; do 
-    sudo docker tag kollaglue/$i localhost:$REGISTRY_PORT/$i
+    sudo docker tag kollaglue/$i $IP:$REGISTRY_PORT/$i
 done
 
 for i in "${containers[@]}"; do 
-    sudo docker push localhost:$REGISTRY_PORT/$i
+    sudo docker push $IP:$REGISTRY_PORT/$i
 done
