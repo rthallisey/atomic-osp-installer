@@ -14,7 +14,7 @@ parameters:
     default: fedora-software-config
   docker_registry:
     type: string
-    default: 10.18.57.151:8080
+    default: 10.18.57.5:8080
 
 ## Rabbit ##
 

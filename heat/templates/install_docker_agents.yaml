@@ -1,0 +1,20 @@
+heat_template_version: 2014-10-16
+
+parameters:
+  agent_image:
+    type: string
+    default: ramishra/heat-docker-atomic-agents
+
+resources:
+  install_docker_agents:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      config:
+        str_replace:
+          params:
+            $agent_image: {get_param: agent_image}
+          template: {get_file: ./fragments/start_docker_agents.sh}
+outputs:
+  config:
+    value: {get_resource: install_docker_agents}
