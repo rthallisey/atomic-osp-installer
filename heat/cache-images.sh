@@ -14,17 +14,17 @@ containers=(centos-rdo-rabbitmq
 #	    centos-rdo-heat-api
 	   )
 
-local registry_port=8080
+REGISTRY_PORT=8080
 
 #echo $containers
 for i in "${containers[@]}"; do 
-    echo sudo docker pull kollaglue/$i
+    sudo docker pull kollaglue/$i
 done
 
 for i in "${containers[@]}"; do 
-    echo sudo docker tag kollaglue/$i localhost:$registry_port/$i
+    sudo docker tag kollaglue/$i localhost:$REGISTRY_PORT/$i
 done
 
 for i in "${containers[@]}"; do 
-    echo sudo docker push localhost:$registry_port/$i
+    sudo docker push localhost:$REGISTRY_PORT/$i
 done
