@@ -174,7 +174,6 @@ resources:
       - name: DOCKER_REGISTRY
       config: |
         #!/bin/bash
-        # FIXME(shardy): build into the image via diskimage-builder
         yum -y install docker-io
         echo "OPTIONS='--insecure-registry $DOCKER_REGISTRY --selinux-enabled'" >> /etc/sysconfig/docker
         systemctl start docker
@@ -199,8 +198,7 @@ resources:
       - name: RABBITMQ_USER
       config: |
         #!/bin/bash
-        # FIXME(shardy) pre-build images via docker pull to speed up deployment
-        env  | grep "^RABBIT" > /tmp/rabbit.env
+        env | grep "^RABBIT" > /tmp/rabbit.env
         MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
         echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /tmp/rabbit.env
         docker run -d --name rabbitmq --net=host --env-file=/tmp/rabbit.env $DOCKER_REGISTRY/centos-rdo-rabbitmq | tee /tmp/rabbit.log
@@ -227,8 +225,7 @@ resources:
       - name: MYSQL_ROOT_PASSWORD
       config: |
         #!/bin/bash
-        # FIXME(shardy) pre-build images via docker pull to speed up deployment
-        env  | grep "^MYSQL" > /tmp/mariadb.env
+        env | grep "^MYSQL" > /tmp/mariadb.env
         MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
         echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/mariadb.env
         docker run -d --name mariadb --net=host --env-file=/tmp/mariadb.env $DOCKER_REGISTRY/centos-rdo-mariadb | tee /tmp/mariadb.log
@@ -265,8 +262,6 @@ resources:
       - name: DB_ROOT_PASSWORD
       config: |
         #!/bin/bash
-        # FIXME(shardy) pre-build images via docker pull to speed up deployment
-        #env | grep "^KEYSTONE" > /tmp/keystone.env
         env > /tmp/keystone.env
         MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
         echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/keystone.env
@@ -319,8 +314,6 @@ resources:
       - name: DB_ROOT_PASSWORD
       config: |
         #!/bin/bash
-        # FIXME(shardy) pre-build images via docker pull to speed up deployment
-        #env | grep "^GLANCE" > /tmp/glance-api.env
         env > /tmp/glance-api.env
         MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
         echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/glance-api.env
@@ -376,8 +369,6 @@ resources:
       - name: DB_ROOT_PASSWORD
       config: |
         #!/bin/bash
-        # FIXME(shardy) pre-build images via docker pull to speed up deployment
-        #env | grep "^GLANCE" > /tmp/glance-registry.env
         env > /tmp/glance-registry.env
         MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
         echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/glance-registry.env
@@ -431,11 +422,10 @@ resources:
       - name: DB_ROOT_PASSWORD
       config: |
         #!/bin/bash
-        # FIXME(shardy) pre-build images via docker pull to speed up deployment
-        #env | grep "^NOVA" > /tmp/nova-conductor.env
         env > /tmp/nova-conductor.env
         MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
         MY_DEV=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $3}')
+        # FIXME: We need to have these come from the template at some point for distributed installations.
         echo "PUBLIC_INTERFACE=$MY_DEV" >> /tmp/nova-conductor.env
         echo "FLAT_INTERFACE=$MY_DEV" >> /tmp/nova-conductor.env
         echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/nova-conductor.env
@@ -493,11 +483,10 @@ resources:
       - name: DB_ROOT_PASSWORD
       config: |
         #!/bin/bash
-        # FIXME(shardy) pre-build images via docker pull to speed up deployment
-        #env | grep "^NOVA" > /tmp/nova-api.env
         env > /tmp/nova-api.env
         MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
         MY_DEV=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $3}')
+        # FIXME: We need to have these come from the template at some point for distributed installations.
         echo "PUBLIC_INTERFACE=$MY_DEV" >> /tmp/nova-api.env
         echo "FLAT_INTERFACE=$MY_DEV" >> /tmp/nova-api.env
         echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
@@ -556,11 +545,10 @@ resources:
       - name: DB_ROOT_PASSWORD
       config: |
         #!/bin/bash
-        # FIXME(shardy) pre-build images via docker pull to speed up deployment
-        #env | grep "^NOVA" > /tmp/nova-compute.env
         env > /tmp/nova-compute.env
         MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
         MY_DEV=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $3}')
+        # FIXME: We need to have these come from the template at some point for distributed installations.
         echo "PUBLIC_INTERFACE=$MY_DEV" >> /tmp/nova-compute.env
         echo "FLAT_INTERFACE=$MY_DEV" >> /tmp/nova-compute.env
         echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/nova-compute.env
@@ -618,11 +606,10 @@ resources:
       - name: DB_ROOT_PASSWORD
       config: |
         #!/bin/bash
-        # FIXME(shardy) pre-build images via docker pull to speed up deployment
-        #env | grep "^NOVA" > /tmp/nova-scheduler.env
         env > /tmp/nova-scheduler.env
         MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
         MY_DEV=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $3}')
+        # FIXME: We need to have these come from the template at some point for distributed installations.
         echo "PUBLIC_INTERFACE=$MY_DEV" >> /tmp/nova-scheduler.env
         echo "FLAT_INTERFACE=$MY_DEV" >> /tmp/nova-scheduler.env
         echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/nova-scheduler.env
@@ -680,11 +667,10 @@ resources:
       - name: DB_ROOT_PASSWORD
       config: |
         #!/bin/bash
-        # FIXME(shardy) pre-build images via docker pull to speed up deployment
-        #env | grep "^NOVA" > /tmp/nova-network.env
         env > /tmp/nova-network.env
         MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
         MY_DEV=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $3}')
+        # FIXME: We need to have these come from the template at some point for distributed installations.
         echo "PUBLIC_INTERFACE=$MY_DEV" >> /tmp/nova-network.env
         echo "FLAT_INTERFACE=$MY_DEV" >> /tmp/nova-network.env
         echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/nova-network.env
