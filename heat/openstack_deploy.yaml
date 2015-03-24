@@ -1,5 +1,8 @@
 heat_template_version: 2014-10-16
 
+description: >
+  A template which starts openstack on AtomicOS.
+
 #http://paste.fedoraproject.org/200162/14267900/
 
 parameters:
@@ -11,7 +14,7 @@ parameters:
     default: m1.small
   image:
     type: string
-    default: fedora-software-config
+    default: rhel-atomic
   docker_registry:
     type: string
     default: 10.18.57.5:8080
@@ -158,6 +161,10 @@ parameters:
     type: string
 
 resources:
+
+  boot_config:
+    type: Heat::InstallConfigAgent
+
   server:
     type: OS::Nova::Server
     properties:
@@ -174,9 +181,9 @@ resources:
       - name: DOCKER_REGISTRY
       config: |
         #!/bin/bash
-        yum -y install docker-io
         echo "OPTIONS='--insecure-registry $DOCKER_REGISTRY --selinux-enabled'" >> /etc/sysconfig/docker
-        systemctl start docker
+        echo "ADD_REGISTRY='--add-registry $DOCKER_REGISTRY'" >> /etc/sysconfig/docker
+        systemctl restart docker
 
   docker_deployment:
     type: OS::Heat::SoftwareDeployment
@@ -188,7 +195,7 @@ resources:
       input_values:
         DOCKER_REGISTRY: {get_param: docker_registry}
 
-  rabbit_config:
+  rabbit_env_config:
     type: OS::Heat::SoftwareConfig
     properties:
       group: script
@@ -197,18 +204,25 @@ resources:
       - name: RABBITMQ_PASS
       - name: RABBITMQ_USER
       config: |
-        #!/bin/bash
-        env | grep "^RABBIT" > /tmp/rabbit.env
+        env > /etc/rabbit.env
         MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
-        echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /tmp/rabbit.env
-        docker run -d --name rabbitmq --net=host --env-file=/tmp/rabbit.env $DOCKER_REGISTRY/centos-rdo-rabbitmq | tee /tmp/rabbit.log
+        echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /etc/rabbit.env
+
+  atomic_install_rabbit:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: atomic
+      config:
+        command: install
+        image: imain/atomic-install-rabbitmq
 
   rabbit_deployment:
     type: OS::Heat::SoftwareDeployment
     depends_on: docker_deployment
     properties:
       config:
-        get_resource: rabbit_config
+        get_resource: rabbit_env_config
+        get_resource: atomic_install_rabbit
       server:
         get_resource: server
       input_values:
@@ -225,10 +239,17 @@ resources:
       - name: MYSQL_ROOT_PASSWORD
       config: |
         #!/bin/bash
-        env | grep "^MYSQL" > /tmp/mariadb.env
+        env | grep "^MYSQL" > /etc/mariadb.env
         MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
         echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/mariadb.env
-        docker run -d --name mariadb --net=host --env-file=/tmp/mariadb.env $DOCKER_REGISTRY/centos-rdo-mariadb | tee /tmp/mariadb.log
+
+  atomic_install_mariadb:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: atomic
+      config:
+        command: install
+        image: imain/atomic-install-mariadb
 
   mariadb_deployment:
     type: OS::Heat::SoftwareDeployment
@@ -236,11 +257,20 @@ resources:
     properties:
       config:
         get_resource: mariadb_config
+        get_resource: atomic_install_mariadb
       server:
         get_resource: server
       input_values:
         DOCKER_REGISTRY: {get_param: docker_registry}
         MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
+
+  atomic_install_keystone:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: atomic
+      config:
+        command: install
+        image: imain/atomic-install-keystone
 
   keystone_config:
     type: OS::Heat::SoftwareConfig
@@ -267,13 +297,13 @@ resources:
         echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/keystone.env
         echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/keystone.env
         echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/keystone.env
-        docker run -d --name keystone --net=host --env-file=/tmp/keystone.env $DOCKER_REGISTRY/centos-rdo-keystone | tee /tmp/keystone.log
 
   keystone_deployment:
     type: OS::Heat::SoftwareDeployment
     depends_on: mariadb_deployment
     properties:
       config:
+        get_resource: atomic_install_keystone
         get_resource: keystone_config
       server:
         get_resource: server
@@ -292,418 +322,418 @@ resources:
         ADMIN_TENANT_NAME: {get_param: AdminTenantName}
         DB_ROOT_PASSWORD: {get_param: DBRootPassword}
 
-  glance_api_config:
-    type: OS::Heat::SoftwareConfig
-    properties:
-      group: script
-      inputs:
-      - name: DOCKER_REGISTRY
-      - name: MYSQL_ROOT_PASSWORD
-      - name: GLANCE_KEYSTONE_PASSWORD
-      - name: GLANCE_KEYSTONE_USER
-      - name: GLANCE_DB_USER
-      - name: GLANCE_DB_NAME
-      - name: KEYSTONE_ADMIN_PASSWORD
-      - name: KEYSTONE_ADMIN_SERVICE_PORT
-      - name: KEYSTONE_ADMIN_TOKEN
-      - name: KEYSTONE_AUTH_PROTOCOL
-      - name: KEYSTONE_DB_PASSWORD
-      - name: NOVA_KEYSTONE_PASSWORD
-      - name: NOVA_KEYSTONE_USER
-      - name: ADMIN_TENANT_NAME
-      - name: DB_ROOT_PASSWORD
-      config: |
-        #!/bin/bash
-        env > /tmp/glance-api.env
-        MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
-        echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/glance-api.env
-        echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/glance-api.env
-        echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/glance-api.env
-        echo "GLANCE_REGISTRY_SERVICE_HOST=$MY_IP" >> /tmp/glance-api.env
-        echo "GLANCE_API_SERVICE_HOST=$MY_IP" >> /tmp/glance-api.env
-        echo "PUBLIC_IP=$MY_IP" >> /tmp/glance-api.env
-        docker run -d --name glance-api --net=host --env-file=/tmp/glance-api.env $DOCKER_REGISTRY/centos-rdo-glance-api | tee /tmp/glance-api.log
-
-  glance_api_deployment:
-    type: OS::Heat::SoftwareDeployment
-    depends_on: keystone_deployment
-    properties:
-      config:
-        get_resource: glance_api_config
-      server:
-        get_resource: server
-      input_values:
-        DOCKER_REGISTRY: {get_param: docker_registry}
-        MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
-        GLANCE_KEYSTONE_PASSWORD: {get_param: GlanceKeystonePassword}
-        GLANCE_KEYSTONE_USER: {get_param: GlanceKeystoneUser}
-        GLANCE_DB_USER: {get_param: GlanceDBUser}
-        GLANCE_DB_NAME: {get_param: GlanceDBName}
-        GLANCE_DB_PASSWORD: {get_param: GlanceDBPassword}
-        KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
-        KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
-        KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
-        KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
-        ADMIN_TENANT_NAME: {get_param: AdminTenantName}
-        DB_ROOT_PASSWORD: {get_param: DBRootPassword}
-
-  glance_registry_config:
-    type: OS::Heat::SoftwareConfig
-    properties:
-      group: script
-      inputs:
-      - name: DOCKER_REGISTRY
-      - name: MYSQL_ROOT_PASSWORD
-      - name: GLANCE_KEYSTONE_PASSWORD
-      - name: GLANCE_KEYSTONE_USER
-      - name: GLANCE_DB_USER
-      - name: GLANCE_DB_NAME
-      - name: KEYSTONE_ADMIN_PASSWORD
-      - name: KEYSTONE_ADMIN_SERVICE_PORT
-      - name: KEYSTONE_ADMIN_TOKEN
-      - name: KEYSTONE_AUTH_PROTOCOL
-      - name: KEYSTONE_DB_PASSWORD
-      - name: NOVA_KEYSTONE_PASSWORD
-      - name: NOVA_KEYSTONE_USER
-      - name: ADMIN_TENANT_NAME
-      - name: DB_ROOT_PASSWORD
-      config: |
-        #!/bin/bash
-        env > /tmp/glance-registry.env
-        MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
-        echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/glance-registry.env
-        echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/glance-registry.env
-        echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/glance-registry.env
-        echo "GLANCE_REGISTRY_SERVICE_HOST=$MY_IP" >> /tmp/glance-registry.env
-        echo "GLANCE_API_SERVICE_HOST=$MY_IP" >> /tmp/glance-registry.env
-        echo "PUBLIC_IP=$MY_IP" >> /tmp/glance-registry.env
-        docker run -d --name glance-registry --net=host --env-file=/tmp/glance-registry.env $DOCKER_REGISTRY/centos-rdo-glance-registry| tee /tmp/glance-registry.log
-
-  glance_registry_deployment:
-    type: OS::Heat::SoftwareDeployment
-    depends_on: keystone_deployment
-    properties:
-      config:
-        get_resource: glance_registry_config
-      server:
-        get_resource: server
-      input_values:
-        DOCKER_REGISTRY: {get_param: docker_registry}
-        MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
-        GLANCE_KEYSTONE_PASSWORD: {get_param: GlanceKeystonePassword}
-        GLANCE_KEYSTONE_USER: {get_param: GlanceKeystoneUser}
-        GLANCE_DB_USER: {get_param: GlanceDBUser}
-        GLANCE_DB_NAME: {get_param: GlanceDBName}
-        GLANCE_DB_PASSWORD: {get_param: GlanceDBPassword}
-        KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
-        KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
-        KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
-        KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
-        ADMIN_TENANT_NAME: {get_param: AdminTenantName}
-        DB_ROOT_PASSWORD: {get_param: DBRootPassword}
-
-  nova_conductor_config:
-    type: OS::Heat::SoftwareConfig
-    properties:
-      group: script
-      inputs:
-      - name: DOCKER_REGISTRY
-      - name: MYSQL_ROOT_PASSWORD
-      - name: NOVA_KEYSTONE_PASSWORD
-      - name: NOVA_KEYSTONE_USER
-      - name: NOVA_DB_USER
-      - name: NOVA_DB_NAME
-      - name: KEYSTONE_ADMIN_PASSWORD
-      - name: KEYSTONE_ADMIN_SERVICE_PORT
-      - name: KEYSTONE_ADMIN_TOKEN
-      - name: KEYSTONE_AUTH_PROTOCOL
-      - name: KEYSTONE_DB_PASSWORD
-      - name: ADMIN_TENANT_NAME
-      - name: DB_ROOT_PASSWORD
-      config: |
-        #!/bin/bash
-        env > /tmp/nova-conductor.env
-        MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
-        MY_DEV=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $3}')
-        # FIXME: We need to have these come from the template at some point for distributed installations.
-        echo "PUBLIC_INTERFACE=$MY_DEV" >> /tmp/nova-conductor.env
-        echo "FLAT_INTERFACE=$MY_DEV" >> /tmp/nova-conductor.env
-        echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/nova-conductor.env
-        echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/nova-conductor.env
-        echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/nova-conductor.env
-        echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /tmp/nova-conductor.env
-        echo "GLANCE_API_SERVICE_HOST=$MY_IP" >> /tmp/nova-conductor.env
-        echo "NOVA_CONDUCTOR_SERVICE_HOST=$MY_IP" >> /tmp/nova-conductor.env
-        echo "NOVA_EC2_API_SERVICE_HOST=$MY_IP" >> /tmp/nova-conductor.env
-        echo "NOVA_EC2_SERVICE_HOST=$MY_IP" >> /tmp/nova-conductor.env
-        echo "PUBLIC_IP=$MY_IP" >> /tmp/nova-conductor.env
-        docker run -d --name nova-conductor --net=host --env-file=/tmp/nova-conductor.env $DOCKER_REGISTRY/centos-rdo-nova-conductor | tee /tmp/nova-conductor.log
-
-  nova_conductor_deployment:
-    type: OS::Heat::SoftwareDeployment
-    depends_on: keystone_deployment
-    properties:
-      config:
-        get_resource: nova_conductor_config
-      server:
-        get_resource: server
-      input_values:
-        DOCKER_REGISTRY: {get_param: docker_registry}
-        MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
-        NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
-        NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
-        NOVA_DB_USER: {get_param: NovaDBUser}
-        NOVA_DB_NAME: {get_param: NovaDBName}
-        NOVA_DB_PASSWORD: {get_param: NovaDBPassword}
-        KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
-        KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
-        KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
-        KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
-        ADMIN_TENANT_NAME: {get_param: AdminTenantName}
-        DB_ROOT_PASSWORD: {get_param: DBRootPassword}
-        NETWORK_MANAGER: {get_param: NetworkManager}
-
-  nova_api_config:
-    type: OS::Heat::SoftwareConfig
-    properties:
-      group: script
-      inputs:
-      - name: DOCKER_REGISTRY
-      - name: MYSQL_ROOT_PASSWORD
-      - name: NOVA_KEYSTONE_PASSWORD
-      - name: NOVA_KEYSTONE_USER
-      - name: NOVA_DB_USER
-      - name: NOVA_DB_NAME
-      - name: KEYSTONE_ADMIN_PASSWORD
-      - name: KEYSTONE_ADMIN_SERVICE_PORT
-      - name: KEYSTONE_ADMIN_TOKEN
-      - name: KEYSTONE_AUTH_PROTOCOL
-      - name: KEYSTONE_DB_PASSWORD
-      - name: ADMIN_TENANT_NAME
-      - name: DB_ROOT_PASSWORD
-      config: |
-        #!/bin/bash
-        env > /tmp/nova-api.env
-        MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
-        MY_DEV=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $3}')
-        # FIXME: We need to have these come from the template at some point for distributed installations.
-        echo "PUBLIC_INTERFACE=$MY_DEV" >> /tmp/nova-api.env
-        echo "FLAT_INTERFACE=$MY_DEV" >> /tmp/nova-api.env
-        echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
-        echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
-        echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
-        echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
-        echo "GLANCE_API_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
-        echo "NOVA_API_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
-        echo "NOVA_EC2_API_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
-        echo "NOVA_EC2_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
-        echo "PUBLIC_IP=$MY_IP" >> /tmp/nova-api.env
-        docker run -d --name nova-api --net=host --env-file=/tmp/nova-api.env $DOCKER_REGISTRY/centos-rdo-nova-api | tee /tmp/nova-api.log
-
-  nova_api_deployment:
-    type: OS::Heat::SoftwareDeployment
-    depends_on: nova_conductor_deployment
-    properties:
-      config:
-        get_resource: nova_api_config
-      server:
-        get_resource: server
-      input_values:
-        DOCKER_REGISTRY: {get_param: docker_registry}
-        MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
-        NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
-        NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
-        NOVA_DB_USER: {get_param: NovaDBUser}
-        NOVA_DB_NAME: {get_param: NovaDBName}
-        NOVA_DB_PASSWORD: {get_param: NovaDBPassword}
-        KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
-        KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
-        KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
-        KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
-        ADMIN_TENANT_NAME: {get_param: AdminTenantName}
-        DB_ROOT_PASSWORD: {get_param: DBRootPassword}
-        NETWORK_MANAGER: {get_param: NetworkManager}
-
-  # nova-compute + libvirt container
-  nova_compute_config:
-    type: OS::Heat::SoftwareConfig
-    properties:
-      group: script
-      inputs:
-      - name: DOCKER_REGISTRY
-      - name: MYSQL_ROOT_PASSWORD
-      - name: NOVA_KEYSTONE_PASSWORD
-      - name: NOVA_KEYSTONE_USER
-      - name: NOVA_DB_USER
-      - name: NOVA_DB_NAME
-      - name: KEYSTONE_ADMIN_PASSWORD
-      - name: KEYSTONE_ADMIN_SERVICE_PORT
-      - name: KEYSTONE_ADMIN_TOKEN
-      - name: KEYSTONE_AUTH_PROTOCOL
-      - name: KEYSTONE_DB_PASSWORD
-      - name: ADMIN_TENANT_NAME
-      - name: DB_ROOT_PASSWORD
-      config: |
-        #!/bin/bash
-        env > /tmp/nova-compute.env
-        MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
-        MY_DEV=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $3}')
-        # FIXME: We need to have these come from the template at some point for distributed installations.
-        echo "PUBLIC_INTERFACE=$MY_DEV" >> /tmp/nova-compute.env
-        echo "FLAT_INTERFACE=$MY_DEV" >> /tmp/nova-compute.env
-        echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/nova-compute.env
-        echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/nova-compute.env
-        echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/nova-compute.env
-        echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /tmp/nova-compute.env
-        echo "GLANCE_API_SERVICE_HOST=$MY_IP" >> /tmp/nova-compute.env
-        echo "NOVA_COMPUTE_SERVICE_HOST=$MY_IP" >> /tmp/nova-compute.env
-        echo "NOVA_EC2_COMPUTE_SERVICE_HOST=$MY_IP" >> /tmp/nova-compute.env
-        echo "NOVA_EC2_SERVICE_HOST=$MY_IP" >> /tmp/nova-compute.env
-        echo "PUBLIC_IP=$MY_IP" >> /tmp/nova-compute.env
-        docker run -d --privileged --name nova-compute --net=host --env-file=/tmp/nova-compute.env $DOCKER_REGISTRY/centos-rdo-nova-compute | tee /tmp/nova-compute.log
-
-  nova_compute_deployment:
-    type: OS::Heat::SoftwareDeployment
-    depends_on: nova_api_deployment
-    properties:
-      config:
-        get_resource: nova_compute_config
-      server:
-        get_resource: server
-      input_values:
-        DOCKER_REGISTRY: {get_param: docker_registry}
-        MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
-        NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
-        NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
-        NOVA_DB_USER: {get_param: NovaDBUser}
-        NOVA_DB_NAME: {get_param: NovaDBName}
-        NOVA_DB_PASSWORD: {get_param: NovaDBPassword}
-        KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
-        KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
-        KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
-        KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
-        ADMIN_TENANT_NAME: {get_param: AdminTenantName}
-        DB_ROOT_PASSWORD: {get_param: DBRootPassword}
-        NETWORK_MANAGER: {get_param: NetworkManager}
-
-  nova_scheduler_config:
-    type: OS::Heat::SoftwareConfig
-    properties:
-      group: script
-      inputs:
-      - name: DOCKER_REGISTRY
-      - name: MYSQL_ROOT_PASSWORD
-      - name: NOVA_KEYSTONE_PASSWORD
-      - name: NOVA_KEYSTONE_USER
-      - name: NOVA_DB_USER
-      - name: NOVA_DB_NAME
-      - name: KEYSTONE_ADMIN_PASSWORD
-      - name: KEYSTONE_ADMIN_SERVICE_PORT
-      - name: KEYSTONE_ADMIN_TOKEN
-      - name: KEYSTONE_AUTH_PROTOCOL
-      - name: KEYSTONE_DB_PASSWORD
-      - name: ADMIN_TENANT_NAME
-      - name: DB_ROOT_PASSWORD
-      config: |
-        #!/bin/bash
-        env > /tmp/nova-scheduler.env
-        MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
-        MY_DEV=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $3}')
-        # FIXME: We need to have these come from the template at some point for distributed installations.
-        echo "PUBLIC_INTERFACE=$MY_DEV" >> /tmp/nova-scheduler.env
-        echo "FLAT_INTERFACE=$MY_DEV" >> /tmp/nova-scheduler.env
-        echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/nova-scheduler.env
-        echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/nova-scheduler.env
-        echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/nova-scheduler.env
-        echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /tmp/nova-scheduler.env
-        echo "GLANCE_API_SERVICE_HOST=$MY_IP" >> /tmp/nova-scheduler.env
-        echo "NOVA_SCHEDULER_SERVICE_HOST=$MY_IP" >> /tmp/nova-scheduler.env
-        echo "NOVA_EC2_SCHEDULER_SERVICE_HOST=$MY_IP" >> /tmp/nova-scheduler.env
-        echo "NOVA_EC2_SERVICE_HOST=$MY_IP" >> /tmp/nova-scheduler.env
-        echo "PUBLIC_IP=$MY_IP" >> /tmp/nova-scheduler.env
-        docker run -d --name nova-scheduler --net=host --env-file=/tmp/nova-scheduler.env $DOCKER_REGISTRY/centos-rdo-nova-scheduler | tee /tmp/nova-scheduler.log
-
-  nova_scheduler_deployment:
-    type: OS::Heat::SoftwareDeployment
-    depends_on: nova_api_deployment
-    properties:
-      config:
-        get_resource: nova_scheduler_config
-      server:
-        get_resource: server
-      input_values:
-        DOCKER_REGISTRY: {get_param: docker_registry}
-        MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
-        NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
-        NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
-        NOVA_DB_USER: {get_param: NovaDBUser}
-        NOVA_DB_NAME: {get_param: NovaDBName}
-        NOVA_DB_PASSWORD: {get_param: NovaDBPassword}
-        KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
-        KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
-        KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
-        KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
-        ADMIN_TENANT_NAME: {get_param: AdminTenantName}
-        DB_ROOT_PASSWORD: {get_param: DBRootPassword}
-        NETWORK_MANAGER: {get_param: NetworkManager}
-
-  nova_network_config:
-    type: OS::Heat::SoftwareConfig
-    properties:
-      group: script
-      inputs:
-      - name: DOCKER_REGISTRY
-      - name: MYSQL_ROOT_PASSWORD
-      - name: NOVA_KEYSTONE_PASSWORD
-      - name: NOVA_KEYSTONE_USER
-      - name: NOVA_DB_USER
-      - name: NOVA_DB_NAME
-      - name: KEYSTONE_ADMIN_PASSWORD
-      - name: KEYSTONE_ADMIN_SERVICE_PORT
-      - name: KEYSTONE_ADMIN_TOKEN
-      - name: KEYSTONE_AUTH_PROTOCOL
-      - name: KEYSTONE_DB_PASSWORD
-      - name: ADMIN_TENANT_NAME
-      - name: DB_ROOT_PASSWORD
-      config: |
-        #!/bin/bash
-        env > /tmp/nova-network.env
-        MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
-        MY_DEV=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $3}')
-        # FIXME: We need to have these come from the template at some point for distributed installations.
-        echo "PUBLIC_INTERFACE=$MY_DEV" >> /tmp/nova-network.env
-        echo "FLAT_INTERFACE=$MY_DEV" >> /tmp/nova-network.env
-        echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/nova-network.env
-        echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/nova-network.env
-        echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/nova-network.env
-        echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /tmp/nova-network.env
-        echo "GLANCE_API_SERVICE_HOST=$MY_IP" >> /tmp/nova-network.env
-        echo "NOVA_NETWORK_SERVICE_HOST=$MY_IP" >> /tmp/nova-network.env
-        echo "NOVA_EC2_NETWORK_SERVICE_HOST=$MY_IP" >> /tmp/nova-network.env
-        echo "NOVA_EC2_SERVICE_HOST=$MY_IP" >> /tmp/nova-network.env
-        echo "PUBLIC_IP=$MY_IP" >> /tmp/nova-network.env
-        docker run -d --privileged --name nova-network --net=host --env-file=/tmp/nova-network.env $DOCKER_REGISTRY/centos-rdo-nova-network | tee /tmp/nova-network.log
-
-  nova_network_deployment:
-    type: OS::Heat::SoftwareDeployment
-    depends_on: nova_api_deployment
-    properties:
-      config:
-        get_resource: nova_network_config
-      server:
-        get_resource: server
-      input_values:
-        DOCKER_REGISTRY: {get_param: docker_registry}
-        MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
-        NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
-        NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
-        NOVA_DB_USER: {get_param: NovaDBUser}
-        NOVA_DB_NAME: {get_param: NovaDBName}
-        NOVA_DB_PASSWORD: {get_param: NovaDBPassword}
-        KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
-        KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
-        KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
-        KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
-        ADMIN_TENANT_NAME: {get_param: AdminTenantName}
-        DB_ROOT_PASSWORD: {get_param: DBRootPassword}
-        NETWORK_MANAGER: {get_param: NetworkManager}
+  # glance_api_config:
+  #   type: OS::Heat::SoftwareConfig
+  #   properties:
+  #     group: script
+  #     inputs:
+  #     - name: DOCKER_REGISTRY
+  #     - name: MYSQL_ROOT_PASSWORD
+  #     - name: GLANCE_KEYSTONE_PASSWORD
+  #     - name: GLANCE_KEYSTONE_USER
+  #     - name: GLANCE_DB_USER
+  #     - name: GLANCE_DB_NAME
+  #     - name: KEYSTONE_ADMIN_PASSWORD
+  #     - name: KEYSTONE_ADMIN_SERVICE_PORT
+  #     - name: KEYSTONE_ADMIN_TOKEN
+  #     - name: KEYSTONE_AUTH_PROTOCOL
+  #     - name: KEYSTONE_DB_PASSWORD
+  #     - name: NOVA_KEYSTONE_PASSWORD
+  #     - name: NOVA_KEYSTONE_USER
+  #     - name: ADMIN_TENANT_NAME
+  #     - name: DB_ROOT_PASSWORD
+  #     config: |
+  #       #!/bin/bash
+  #       env > /tmp/glance-api.env
+  #       MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
+  #       echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/glance-api.env
+  #       echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/glance-api.env
+  #       echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/glance-api.env
+  #       echo "GLANCE_REGISTRY_SERVICE_HOST=$MY_IP" >> /tmp/glance-api.env
+  #       echo "GLANCE_API_SERVICE_HOST=$MY_IP" >> /tmp/glance-api.env
+  #       echo "PUBLIC_IP=$MY_IP" >> /tmp/glance-api.env
+  #       docker run -d --name glance-api --net=host --env-file=/tmp/glance-api.env $DOCKER_REGISTRY/centos-rdo-glance-api | tee /tmp/glance-api.log
+  #
+  # glance_api_deployment:
+  #   type: OS::Heat::SoftwareDeployment
+  #   depends_on: keystone_deployment
+  #   properties:
+  #     config:
+  #       get_resource: glance_api_config
+  #     server:
+  #       get_resource: server
+  #     input_values:
+  #       DOCKER_REGISTRY: {get_param: docker_registry}
+  #       MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
+  #       GLANCE_KEYSTONE_PASSWORD: {get_param: GlanceKeystonePassword}
+  #       GLANCE_KEYSTONE_USER: {get_param: GlanceKeystoneUser}
+  #       GLANCE_DB_USER: {get_param: GlanceDBUser}
+  #       GLANCE_DB_NAME: {get_param: GlanceDBName}
+  #       GLANCE_DB_PASSWORD: {get_param: GlanceDBPassword}
+  #       KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
+  #       KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
+  #       KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
+  #       KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
+  #       ADMIN_TENANT_NAME: {get_param: AdminTenantName}
+  #       DB_ROOT_PASSWORD: {get_param: DBRootPassword}
+  #
+  # glance_registry_config:
+  #   type: OS::Heat::SoftwareConfig
+  #   properties:
+  #     group: script
+  #     inputs:
+  #     - name: DOCKER_REGISTRY
+  #     - name: MYSQL_ROOT_PASSWORD
+  #     - name: GLANCE_KEYSTONE_PASSWORD
+  #     - name: GLANCE_KEYSTONE_USER
+  #     - name: GLANCE_DB_USER
+  #     - name: GLANCE_DB_NAME
+  #     - name: KEYSTONE_ADMIN_PASSWORD
+  #     - name: KEYSTONE_ADMIN_SERVICE_PORT
+  #     - name: KEYSTONE_ADMIN_TOKEN
+  #     - name: KEYSTONE_AUTH_PROTOCOL
+  #     - name: KEYSTONE_DB_PASSWORD
+  #     - name: NOVA_KEYSTONE_PASSWORD
+  #     - name: NOVA_KEYSTONE_USER
+  #     - name: ADMIN_TENANT_NAME
+  #     - name: DB_ROOT_PASSWORD
+  #     config: |
+  #       #!/bin/bash
+  #       env > /tmp/glance-registry.env
+  #       MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
+  #       echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/glance-registry.env
+  #       echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/glance-registry.env
+  #       echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/glance-registry.env
+  #       echo "GLANCE_REGISTRY_SERVICE_HOST=$MY_IP" >> /tmp/glance-registry.env
+  #       echo "GLANCE_API_SERVICE_HOST=$MY_IP" >> /tmp/glance-registry.env
+  #       echo "PUBLIC_IP=$MY_IP" >> /tmp/glance-registry.env
+  #       docker run -d --name glance-registry --net=host --env-file=/tmp/glance-registry.env $DOCKER_REGISTRY/centos-rdo-glance-registry| tee /tmp/glance-registry.log
+  #
+  # glance_registry_deployment:
+  #   type: OS::Heat::SoftwareDeployment
+  #   depends_on: keystone_deployment
+  #   properties:
+  #     config:
+  #       get_resource: glance_registry_config
+  #     server:
+  #       get_resource: server
+  #     input_values:
+  #       DOCKER_REGISTRY: {get_param: docker_registry}
+  #       MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
+  #       GLANCE_KEYSTONE_PASSWORD: {get_param: GlanceKeystonePassword}
+  #       GLANCE_KEYSTONE_USER: {get_param: GlanceKeystoneUser}
+  #       GLANCE_DB_USER: {get_param: GlanceDBUser}
+  #       GLANCE_DB_NAME: {get_param: GlanceDBName}
+  #       GLANCE_DB_PASSWORD: {get_param: GlanceDBPassword}
+  #       KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
+  #       KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
+  #       KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
+  #       KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
+  #       ADMIN_TENANT_NAME: {get_param: AdminTenantName}
+  #       DB_ROOT_PASSWORD: {get_param: DBRootPassword}
+  #
+  # nova_conductor_config:
+  #   type: OS::Heat::SoftwareConfig
+  #   properties:
+  #     group: script
+  #     inputs:
+  #     - name: DOCKER_REGISTRY
+  #     - name: MYSQL_ROOT_PASSWORD
+  #     - name: NOVA_KEYSTONE_PASSWORD
+  #     - name: NOVA_KEYSTONE_USER
+  #     - name: NOVA_DB_USER
+  #     - name: NOVA_DB_NAME
+  #     - name: KEYSTONE_ADMIN_PASSWORD
+  #     - name: KEYSTONE_ADMIN_SERVICE_PORT
+  #     - name: KEYSTONE_ADMIN_TOKEN
+  #     - name: KEYSTONE_AUTH_PROTOCOL
+  #     - name: KEYSTONE_DB_PASSWORD
+  #     - name: ADMIN_TENANT_NAME
+  #     - name: DB_ROOT_PASSWORD
+  #     config: |
+  #       #!/bin/bash
+  #       env > /tmp/nova-conductor.env
+  #       MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
+  #       MY_DEV=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $3}')
+  #       # FIXME: We need to have these come from the template at some point for distributed installations.
+  #       echo "PUBLIC_INTERFACE=$MY_DEV" >> /tmp/nova-conductor.env
+  #       echo "FLAT_INTERFACE=$MY_DEV" >> /tmp/nova-conductor.env
+  #       echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/nova-conductor.env
+  #       echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/nova-conductor.env
+  #       echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/nova-conductor.env
+  #       echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /tmp/nova-conductor.env
+  #       echo "GLANCE_API_SERVICE_HOST=$MY_IP" >> /tmp/nova-conductor.env
+  #       echo "NOVA_CONDUCTOR_SERVICE_HOST=$MY_IP" >> /tmp/nova-conductor.env
+  #       echo "NOVA_EC2_API_SERVICE_HOST=$MY_IP" >> /tmp/nova-conductor.env
+  #       echo "NOVA_EC2_SERVICE_HOST=$MY_IP" >> /tmp/nova-conductor.env
+  #       echo "PUBLIC_IP=$MY_IP" >> /tmp/nova-conductor.env
+  #       docker run -d --name nova-conductor --net=host --env-file=/tmp/nova-conductor.env $DOCKER_REGISTRY/centos-rdo-nova-conductor | tee /tmp/nova-conductor.log
+  #
+  # nova_conductor_deployment:
+  #   type: OS::Heat::SoftwareDeployment
+  #   depends_on: keystone_deployment
+  #   properties:
+  #     config:
+  #       get_resource: nova_conductor_config
+  #     server:
+  #       get_resource: server
+  #     input_values:
+  #       DOCKER_REGISTRY: {get_param: docker_registry}
+  #       MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
+  #       NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
+  #       NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
+  #       NOVA_DB_USER: {get_param: NovaDBUser}
+  #       NOVA_DB_NAME: {get_param: NovaDBName}
+  #       NOVA_DB_PASSWORD: {get_param: NovaDBPassword}
+  #       KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
+  #       KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
+  #       KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
+  #       KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
+  #       ADMIN_TENANT_NAME: {get_param: AdminTenantName}
+  #       DB_ROOT_PASSWORD: {get_param: DBRootPassword}
+  #       NETWORK_MANAGER: {get_param: NetworkManager}
+  #
+  # nova_api_config:
+  #   type: OS::Heat::SoftwareConfig
+  #   properties:
+  #     group: script
+  #     inputs:
+  #     - name: DOCKER_REGISTRY
+  #     - name: MYSQL_ROOT_PASSWORD
+  #     - name: NOVA_KEYSTONE_PASSWORD
+  #     - name: NOVA_KEYSTONE_USER
+  #     - name: NOVA_DB_USER
+  #     - name: NOVA_DB_NAME
+  #     - name: KEYSTONE_ADMIN_PASSWORD
+  #     - name: KEYSTONE_ADMIN_SERVICE_PORT
+  #     - name: KEYSTONE_ADMIN_TOKEN
+  #     - name: KEYSTONE_AUTH_PROTOCOL
+  #     - name: KEYSTONE_DB_PASSWORD
+  #     - name: ADMIN_TENANT_NAME
+  #     - name: DB_ROOT_PASSWORD
+  #     config: |
+  #       #!/bin/bash
+  #       env > /tmp/nova-api.env
+  #       MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
+  #       MY_DEV=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $3}')
+  #       # FIXME: We need to have these come from the template at some point for distributed installations.
+  #       echo "PUBLIC_INTERFACE=$MY_DEV" >> /tmp/nova-api.env
+  #       echo "FLAT_INTERFACE=$MY_DEV" >> /tmp/nova-api.env
+  #       echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
+  #       echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
+  #       echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
+  #       echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
+  #       echo "GLANCE_API_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
+  #       echo "NOVA_API_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
+  #       echo "NOVA_EC2_API_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
+  #       echo "NOVA_EC2_SERVICE_HOST=$MY_IP" >> /tmp/nova-api.env
+  #       echo "PUBLIC_IP=$MY_IP" >> /tmp/nova-api.env
+  #       docker run -d --name nova-api --net=host --env-file=/tmp/nova-api.env $DOCKER_REGISTRY/centos-rdo-nova-api | tee /tmp/nova-api.log
+  #
+  # nova_api_deployment:
+  #   type: OS::Heat::SoftwareDeployment
+  #   depends_on: nova_conductor_deployment
+  #   properties:
+  #     config:
+  #       get_resource: nova_api_config
+  #     server:
+  #       get_resource: server
+  #     input_values:
+  #       DOCKER_REGISTRY: {get_param: docker_registry}
+  #       MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
+  #       NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
+  #       NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
+  #       NOVA_DB_USER: {get_param: NovaDBUser}
+  #       NOVA_DB_NAME: {get_param: NovaDBName}
+  #       NOVA_DB_PASSWORD: {get_param: NovaDBPassword}
+  #       KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
+  #       KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
+  #       KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
+  #       KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
+  #       ADMIN_TENANT_NAME: {get_param: AdminTenantName}
+  #       DB_ROOT_PASSWORD: {get_param: DBRootPassword}
+  #       NETWORK_MANAGER: {get_param: NetworkManager}
+  #
+  # # nova-compute + libvirt container
+  # nova_compute_config:
+  #   type: OS::Heat::SoftwareConfig
+  #   properties:
+  #     group: script
+  #     inputs:
+  #     - name: DOCKER_REGISTRY
+  #     - name: MYSQL_ROOT_PASSWORD
+  #     - name: NOVA_KEYSTONE_PASSWORD
+  #     - name: NOVA_KEYSTONE_USER
+  #     - name: NOVA_DB_USER
+  #     - name: NOVA_DB_NAME
+  #     - name: KEYSTONE_ADMIN_PASSWORD
+  #     - name: KEYSTONE_ADMIN_SERVICE_PORT
+  #     - name: KEYSTONE_ADMIN_TOKEN
+  #     - name: KEYSTONE_AUTH_PROTOCOL
+  #     - name: KEYSTONE_DB_PASSWORD
+  #     - name: ADMIN_TENANT_NAME
+  #     - name: DB_ROOT_PASSWORD
+  #     config: |
+  #       #!/bin/bash
+  #       env > /tmp/nova-compute.env
+  #       MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
+  #       MY_DEV=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $3}')
+  #       # FIXME: We need to have these come from the template at some point for distributed installations.
+  #       echo "PUBLIC_INTERFACE=$MY_DEV" >> /tmp/nova-compute.env
+  #       echo "FLAT_INTERFACE=$MY_DEV" >> /tmp/nova-compute.env
+  #       echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/nova-compute.env
+  #       echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/nova-compute.env
+  #       echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/nova-compute.env
+  #       echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /tmp/nova-compute.env
+  #       echo "GLANCE_API_SERVICE_HOST=$MY_IP" >> /tmp/nova-compute.env
+  #       echo "NOVA_COMPUTE_SERVICE_HOST=$MY_IP" >> /tmp/nova-compute.env
+  #       echo "NOVA_EC2_COMPUTE_SERVICE_HOST=$MY_IP" >> /tmp/nova-compute.env
+  #       echo "NOVA_EC2_SERVICE_HOST=$MY_IP" >> /tmp/nova-compute.env
+  #       echo "PUBLIC_IP=$MY_IP" >> /tmp/nova-compute.env
+  #       docker run -d --privileged --name nova-compute --net=host --env-file=/tmp/nova-compute.env $DOCKER_REGISTRY/centos-rdo-nova-compute | tee /tmp/nova-compute.log
+  #
+  # nova_compute_deployment:
+  #   type: OS::Heat::SoftwareDeployment
+  #   depends_on: nova_api_deployment
+  #   properties:
+  #     config:
+  #       get_resource: nova_compute_config
+  #     server:
+  #       get_resource: server
+  #     input_values:
+  #       DOCKER_REGISTRY: {get_param: docker_registry}
+  #       MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
+  #       NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
+  #       NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
+  #       NOVA_DB_USER: {get_param: NovaDBUser}
+  #       NOVA_DB_NAME: {get_param: NovaDBName}
+  #       NOVA_DB_PASSWORD: {get_param: NovaDBPassword}
+  #       KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
+  #       KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
+  #       KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
+  #       KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
+  #       ADMIN_TENANT_NAME: {get_param: AdminTenantName}
+  #       DB_ROOT_PASSWORD: {get_param: DBRootPassword}
+  #       NETWORK_MANAGER: {get_param: NetworkManager}
+  #
+  # nova_scheduler_config:
+  #   type: OS::Heat::SoftwareConfig
+  #   properties:
+  #     group: script
+  #     inputs:
+  #     - name: DOCKER_REGISTRY
+  #     - name: MYSQL_ROOT_PASSWORD
+  #     - name: NOVA_KEYSTONE_PASSWORD
+  #     - name: NOVA_KEYSTONE_USER
+  #     - name: NOVA_DB_USER
+  #     - name: NOVA_DB_NAME
+  #     - name: KEYSTONE_ADMIN_PASSWORD
+  #     - name: KEYSTONE_ADMIN_SERVICE_PORT
+  #     - name: KEYSTONE_ADMIN_TOKEN
+  #     - name: KEYSTONE_AUTH_PROTOCOL
+  #     - name: KEYSTONE_DB_PASSWORD
+  #     - name: ADMIN_TENANT_NAME
+  #     - name: DB_ROOT_PASSWORD
+  #     config: |
+  #       #!/bin/bash
+  #       env > /tmp/nova-scheduler.env
+  #       MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
+  #       MY_DEV=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $3}')
+  #       # FIXME: We need to have these come from the template at some point for distributed installations.
+  #       echo "PUBLIC_INTERFACE=$MY_DEV" >> /tmp/nova-scheduler.env
+  #       echo "FLAT_INTERFACE=$MY_DEV" >> /tmp/nova-scheduler.env
+  #       echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/nova-scheduler.env
+  #       echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/nova-scheduler.env
+  #       echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/nova-scheduler.env
+  #       echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /tmp/nova-scheduler.env
+  #       echo "GLANCE_API_SERVICE_HOST=$MY_IP" >> /tmp/nova-scheduler.env
+  #       echo "NOVA_SCHEDULER_SERVICE_HOST=$MY_IP" >> /tmp/nova-scheduler.env
+  #       echo "NOVA_EC2_SCHEDULER_SERVICE_HOST=$MY_IP" >> /tmp/nova-scheduler.env
+  #       echo "NOVA_EC2_SERVICE_HOST=$MY_IP" >> /tmp/nova-scheduler.env
+  #       echo "PUBLIC_IP=$MY_IP" >> /tmp/nova-scheduler.env
+  #       docker run -d --name nova-scheduler --net=host --env-file=/tmp/nova-scheduler.env $DOCKER_REGISTRY/centos-rdo-nova-scheduler | tee /tmp/nova-scheduler.log
+  #
+  # nova_scheduler_deployment:
+  #   type: OS::Heat::SoftwareDeployment
+  #   depends_on: nova_api_deployment
+  #   properties:
+  #     config:
+  #       get_resource: nova_scheduler_config
+  #     server:
+  #       get_resource: server
+  #     input_values:
+  #       DOCKER_REGISTRY: {get_param: docker_registry}
+  #       MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
+  #       NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
+  #       NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
+  #       NOVA_DB_USER: {get_param: NovaDBUser}
+  #       NOVA_DB_NAME: {get_param: NovaDBName}
+  #       NOVA_DB_PASSWORD: {get_param: NovaDBPassword}
+  #       KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
+  #       KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
+  #       KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
+  #       KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
+  #       ADMIN_TENANT_NAME: {get_param: AdminTenantName}
+  #       DB_ROOT_PASSWORD: {get_param: DBRootPassword}
+  #       NETWORK_MANAGER: {get_param: NetworkManager}
+  #
+  # nova_network_config:
+  #   type: OS::Heat::SoftwareConfig
+  #   properties:
+  #     group: script
+  #     inputs:
+  #     - name: DOCKER_REGISTRY
+  #     - name: MYSQL_ROOT_PASSWORD
+  #     - name: NOVA_KEYSTONE_PASSWORD
+  #     - name: NOVA_KEYSTONE_USER
+  #     - name: NOVA_DB_USER
+  #     - name: NOVA_DB_NAME
+  #     - name: KEYSTONE_ADMIN_PASSWORD
+  #     - name: KEYSTONE_ADMIN_SERVICE_PORT
+  #     - name: KEYSTONE_ADMIN_TOKEN
+  #     - name: KEYSTONE_AUTH_PROTOCOL
+  #     - name: KEYSTONE_DB_PASSWORD
+  #     - name: ADMIN_TENANT_NAME
+  #     - name: DB_ROOT_PASSWORD
+  #     config: |
+  #       #!/bin/bash
+  #       env > /tmp/nova-network.env
+  #       MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
+  #       MY_DEV=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $3}')
+  #       # FIXME: We need to have these come from the template at some point for distributed installations.
+  #       echo "PUBLIC_INTERFACE=$MY_DEV" >> /tmp/nova-network.env
+  #       echo "FLAT_INTERFACE=$MY_DEV" >> /tmp/nova-network.env
+  #       echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/nova-network.env
+  #       echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/nova-network.env
+  #       echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/nova-network.env
+  #       echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /tmp/nova-network.env
+  #       echo "GLANCE_API_SERVICE_HOST=$MY_IP" >> /tmp/nova-network.env
+  #       echo "NOVA_NETWORK_SERVICE_HOST=$MY_IP" >> /tmp/nova-network.env
+  #       echo "NOVA_EC2_NETWORK_SERVICE_HOST=$MY_IP" >> /tmp/nova-network.env
+  #       echo "NOVA_EC2_SERVICE_HOST=$MY_IP" >> /tmp/nova-network.env
+  #       echo "PUBLIC_IP=$MY_IP" >> /tmp/nova-network.env
+  #       docker run -d --privileged --name nova-network --net=host --env-file=/tmp/nova-network.env $DOCKER_REGISTRY/centos-rdo-nova-network | tee /tmp/nova-network.log
+  #
+  # nova_network_deployment:
+  #   type: OS::Heat::SoftwareDeployment
+  #   depends_on: nova_api_deployment
+  #   properties:
+  #     config:
+  #       get_resource: nova_network_config
+  #     server:
+  #       get_resource: server
+  #     input_values:
+  #       DOCKER_REGISTRY: {get_param: docker_registry}
+  #       MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
+  #       NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
+  #       NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
+  #       NOVA_DB_USER: {get_param: NovaDBUser}
+  #       NOVA_DB_NAME: {get_param: NovaDBName}
+  #       NOVA_DB_PASSWORD: {get_param: NovaDBPassword}
+  #       KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
+  #       KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
+  #       KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
+  #       KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
+  #       ADMIN_TENANT_NAME: {get_param: AdminTenantName}
+  #       DB_ROOT_PASSWORD: {get_param: DBRootPassword}
+  #       NETWORK_MANAGER: {get_param: NetworkManager}

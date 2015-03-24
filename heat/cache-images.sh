@@ -1,18 +1,18 @@
 #!/bin/bash
 
 declare -a containers
-containers=(centos-rdo-rabbitmq
-	    centos-rdo-mariadb
-	    centos-rdo-keystone
-	    centos-rdo-glance-api
-	    centos-rdo-glance-registry
-	    centos-rdo-nova-conductor
-	    centos-rdo-nova-api
-	    centos-rdo-nova-libvirt
-	    centos-rdo-nova-compute
-	    centos-rdo-nova-scheduler
-#	    centos-rdo-heat-engine
-#	    centos-rdo-heat-api
+containers=(atomic-install-rabbitmq
+	    atomic-install-mariadb
+	    atomic-install-keystone
+	    atomic-install-glance-api
+	    atomic-install-glance-registry
+	    atomic-install-nova-conductor
+	    atomic-install-nova-api
+	    atomic-install-nova-libvirt
+	    atomic-install-nova-compute
+	    atomic-install-nova-scheduler
+#	    atomic-install-heat-engine
+#	    atomic-install-heat-api
 	   )
 
 REGISTRY_PORT=8080
@@ -20,11 +20,11 @@ IP=10.18.57.5
 
 #echo $containers
 for i in "${containers[@]}"; do
-    sudo docker pull kollaglue/$i
+    sudo docker pull imain/$i
 done
 
 for i in "${containers[@]}"; do
-    sudo docker tag -f kollaglue/$i $IP:$REGISTRY_PORT/$i
+    sudo docker tag -f imain/$i $IP:$REGISTRY_PORT/$i
 done
 
 for i in "${containers[@]}"; do
