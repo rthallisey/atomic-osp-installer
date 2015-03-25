@@ -283,16 +283,16 @@ resources:
         #!/bin/bash
         env > /etc/openstack.env
 
-  rabbitmq_deployment:
+  rabbitmq_install:
     type: OS::Heat::SoftwareDeployment
     depends_on: openstack_environment_deployment
     properties:
       config:
-        get_resource: atomic_install_rabbitmq
+        get_resource: configure_rabbitmq
       server:
         get_resource: server
 
-  atomic_install_rabbitmq:
+  configure_rabbitmq:
     type: OS::Heat::StructuredConfig
     properties:
       group: atomic
@@ -300,16 +300,16 @@ resources:
         command: install
         image: atomic-install-rabbitmq
 
-  mariadb_deployment:
+  mariadb_install:
     type: OS::Heat::SoftwareDeployment
     depends_on: openstack_environment_deployment
     properties:
       config:
-        get_resource: atomic_install_mariadb
+        get_resource: configure_mariadb
       server:
         get_resource: server
 
-  atomic_install_mariadb:
+  configure_mariadb:
     type: OS::Heat::StructuredConfig
     properties:
       group: atomic
@@ -317,16 +317,16 @@ resources:
         command: install
         image: atomic-install-mariadb
 
-  keystone_deployment:
+  keystone_install:
     type: OS::Heat::SoftwareDeployment
     depends_on: openstack_environment_deployment
     properties:
       config:
-        get_resource: atomic_install_keystone
+        get_resource: configure_keystone
       server:
         get_resource: server
 
-  atomic_install_keystone:
+  configure_keystone:
     type: OS::Heat::StructuredConfig
     properties:
       group: atomic
@@ -334,16 +334,16 @@ resources:
         command: install
         image: atomic-install-keystone
 
-  glance_api_deployment:
+  glance_api_install:
     type: OS::Heat::SoftwareDeployment
     depends_on: openstack_environment_deployment
     properties:
       config:
-        get_resource: atomic_install_glance_api
+        get_resource: configure_glance_api
       server:
         get_resource: server
 
-  atomic_install_glance_api:
+  configure_glance_api:
     type: OS::Heat::StructuredConfig
     properties:
       group: atomic
@@ -351,16 +351,16 @@ resources:
         command: install
         image: atomic-install-glance-api
 
-  glance_registry_deployment:
+  glance_registry_install:
     type: OS::Heat::SoftwareDeployment
     depends_on: openstack_environment_deployment
     properties:
       config:
-        get_resource: atomic_install_glance_registry
+        get_resource: configure_glance_registry
       server:
         get_resource: server
 
-  atomic_install_glance_registry:
+  configure_glance_registry:
     type: OS::Heat::StructuredConfig
     properties:
       group: atomic
@@ -368,16 +368,16 @@ resources:
         command: install
         image: atomic-install-glance-registry
 
-  nova_conductor_deployment:
+  nova_conductor_install:
     type: OS::Heat::SoftwareDeployment
     depends_on: openstack_environment_deployment
     properties:
       config:
-        get_resource: atomic_install_nova_conductor
+        get_resource: configure_nova_conductor
       server:
         get_resource: server
 
-  atomic_install_nova_conductor:
+  configure_nova_conductor:
     type: OS::Heat::StructuredConfig
     properties:
       group: atomic
@@ -385,16 +385,16 @@ resources:
         command: install
         image: atomic-install-nova-conductor
 
-  nova_api_deployment:
+  nova_api_install:
     type: OS::Heat::SoftwareDeployment
     depends_on: openstack_environment_deployment
     properties:
       config:
-        get_resource: atomic_install_glance_api
+        get_resource: configure_glance_api
       server:
         get_resource: server
 
-  atomic_install_glance_api:
+  configure_glance_api:
     type: OS::Heat::StructuredConfig
     properties:
       group: atomic
@@ -402,16 +402,16 @@ resources:
         command: install
         image: atomic-install-nova-api
 
-  nova_compute_deployment:
+  nova_compute_install:
     type: OS::Heat::SoftwareDeployment
     depends_on: openstack_environment_deployment
     properties:
       config:
-        get_resource: atomic_install_nova_compute
+        get_resource: configure_nova_compute
       server:
         get_resource: server
 
-  atomic_install_nova_compute:
+  configure_nova_compute:
     type: OS::Heat::StructuredConfig
     properties:
       group: atomic
@@ -419,16 +419,16 @@ resources:
         command: install
         image: atomic-install-nova-compute
 
-  nova_scheduler_deployment:
+  nova_scheduler_install:
     type: OS::Heat::SoftwareDeployment
     depends_on: openstack_environment_deployment
     properties:
       config:
-        get_resource: atomic_install_nova_scheduler
+        get_resource: configure_nova_scheduler
       server:
         get_resource: server
 
-  atomic_install_nova_scheduler:
+  configure_nova_scheduler:
     type: OS::Heat::StructuredConfig
     properties:
       group: atomic
@@ -436,16 +436,16 @@ resources:
         command: install
         image: atomic-install-nova-scheduler
 
-  nova_network_deployment:
+  nova_network_install:
     type: OS::Heat::SoftwareDeployment
     depends_on: nova_conductor_deployment
     properties:
       config:
-        get_resource: atomic_install_nova_network
+        get_resource: configure_nova_network
       server:
         get_resource: server
 
-  atomic_install_nova_network:
+  configure_nova_network:
     type: OS::Heat::StructuredConfig
     properties:
       group: atomic
