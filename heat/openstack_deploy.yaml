@@ -53,11 +53,6 @@ parameters:
     description: The admin username for Keystone
     type: string
 
-  KeystoneAdminServiceHost:
-    default: { get_attr: [server, first_address] }
-    description: The admin username for Keystone
-    type: string
-
   KeystoneAdminToken:
     default: 13245
     description: The admin username for Keystone
@@ -163,93 +158,13 @@ parameters:
     type: string
 
    ## Relationships
-  KeystoneAdminServiceHost:
-    default: { get_attr: [server, first_address] }
-    description: The admin username for Keystone
-    type: string
-
   NovaFlatInterface:
     default: eth0
     description: I suck at descriptions
     type: string
 
-  GlanceApiServiceHost:
-    default: { get_attr: [server, first_address] }
-    description: I suck at descriptions
-    type: string
-
-  GlanceRegistryServiceHost:
-    default: { get_attr: [server, first_address] }
-    description: I suck at descriptions
-    type: string
-
-  KeystoneAdminServiceHost:
-    default: { get_attr: [server, first_address] }
-    description: I suck at descriptions
-    type: string
-
-  KeystonePublicServiceHost:
-    default: { get_attr: [server, first_address] }
-    description: I suck at descriptions
-    type: string
-
-  MariadbServiceHost:
-    default: { get_attr: [server, first_address] }
-    description: I suck at descriptions
-    type: string
-
-  NovaApiServiceHost:
-    default: { get_attr: [server, first_address] }
-    description: I suck at descriptions
-    type: string
-
-  NovaComputeServiceHost:
-    default: { get_attr: [server, first_address] }
-    description: I suck at descriptions
-    type: string
-
-  NovaConductorServiceHost:
-    default: { get_attr: [server, first_address] }
-    description: I suck at descriptions
-    type: string
-
-  NovaEc2ApiServiceHost:
-    default: { get_attr: [server, first_address] }
-    description: I suck at descriptions
-    type: string
-
-  NovaEc2ComputeServiceHost:
-    default: { get_attr: [server, first_address] }
-    description: I suck at descriptions
-    type: string
-
-  NovaEc2NetworkServiceHost:
-    default: { get_attr: [server, first_address] }
-    description: I suck at descriptions
-    type: string
-
-  NovaEc2ServiceHost:
-    default: { get_attr: [server, first_address] }
-    description: I suck at descriptions
-    type: string
-
-  NovaNetworkServiceHost:
-    default: { get_attr: [server, first_address] }
-    description: I suck at descriptions
-    type: string
-
   NovaPublicInterface:
     default: eth0
-    description: I suck at descriptions
-    type: string
-
-  NovaPublicIp:
-    default: { get_attr: [server, first_address] }
-    description: I suck at descriptions
-    type: string
-
-  RabbitMQServiceHost:
-    default: { get_attr: [server, first_address] }
     description: I suck at descriptions
     type: string
 
@@ -266,11 +181,11 @@ resources:
   server:
     type: OS::Nova::Server
     properties:
-      image: {get_param: image}
-      flavor: {get_param: flavor}
-      key_name: {get_param: key_name}
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
       user_data_format: SOFTWARE_CONFIG
-      user_data: {get_attr: [boot_config, config]}
+      user_data: { get_attr: [boot_config, config] }
 
   openstack_environment_deployment:
     type: OS::Heat::SoftwareDeployment
@@ -281,44 +196,44 @@ resources:
       server:
         get_resource: server
       input_values:
-        ADMIN_TENANT_NAME: {get_param: AdminTenantName}
-        DB_ROOT_PASSWORD: {get_param: DBRootPassword}
-        FLAT_INTERFACE: {get_param: NovaFlatInterface}
-        GLANCE_API_SERVICE_HOST: {get_param: GlanceApiServiceHost}
-        GLANCE_DB_NAME: {get_param: GlanceDBName}
-        GLANCE_DB_PASSWORD: {get_param: GlanceDBPassword}
-        GLANCE_DB_USER: {get_param: GlanceDBUser}
-        GLANCE_KEYSTONE_PASSWORD: {get_param: GlanceKeystonePassword}
-        GLANCE_KEYSTONE_USER: {get_param: GlanceKeystoneUser}
-        GLANCE_REGISTRY_SERVICE_HOST: {get_param: GlanceRegistryServiceHost}
-        KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
-        KEYSTONE_ADMIN_SERVICE_HOST: {get_param: KeystoneAdminServiceHost}
-        KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
-        KEYSTONE_ADMIN_TOKEN: {get_param: KeystoneAdminToken}
-        KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
-        KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
-        KEYSTONE_PUBLIC_SERVICE_HOST: {get_param: KeystonePublicServiceHost}
-        MARIADB_SERVICE_HOST: {get_param: MariadbServiceHost}
-        MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
-        NETWORK_MANAGER: {get_param: NetworkManager}
-        NOVA_API_SERVICE_HOST: {get_param: NovaApiServiceHost}
-        NOVA_COMPUTE_SERVICE_HOST: {get_param: NovaComputeServiceHost}
-        NOVA_CONDUCTOR_SERVICE_HOST: {get_param: NovaConductorServiceHost}
-        NOVA_DB_NAME: {get_param: NovaDBName}
-        NOVA_DB_PASSWORD: {get_param: NovaDBPassword}
-        NOVA_DB_USER: {get_param: NovaDBUser}
-        NOVA_EC2_API_SERVICE_HOST: {get_param: NovaEc2ApiServiceHost}
-        NOVA_EC2_COMPUTE_SERVICE_HOST: {get_param: NovaEc2ComputeServiceHost}
-        NOVA_EC2_NETWORK_SERVICE_HOST: {get_param: NovaEc2NetworkServiceHost}
-        NOVA_EC2_SERVICE_HOST: {get_param: NovaEc2ServiceHost}
-        NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
-        NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
-        NOVA_NETWORK_SERVICE_HOST: {get_param: NovaNetworkServiceHost}
-        PUBLIC_INTERFACE: {get_param: NovaPublicInterface}
-        PUBLIC_IP: {get_param: NovaPublicIp}
-        RABBITMQ_PASS: {get_param: RabbitPassword}
-        RABBITMQ_SERVICE_HOST: {get_param: RabbitMQServiceHost}
-        RABBITMQ_USER: {get_param: RabbitUserName}
+        ADMIN_TENANT_NAME: { get_param: AdminTenantName }
+        DB_ROOT_PASSWORD: { get_param: DBRootPassword }
+        FLAT_INTERFACE: { get_param: NovaFlatInterface }
+        GLANCE_API_SERVICE_HOST: { get_attr: [server, first_address] }
+        GLANCE_DB_NAME: { get_param: GlanceDBName }
+        GLANCE_DB_PASSWORD: { get_param: GlanceDBPassword }
+        GLANCE_DB_USER: { get_param: GlanceDBUser }
+        GLANCE_KEYSTONE_PASSWORD: { get_param: GlanceKeystonePassword }
+        GLANCE_KEYSTONE_USER: { get_param: GlanceKeystoneUser }
+        GLANCE_REGISTRY_SERVICE_HOST: { get_attr: [server, first_address] }
+        KEYSTONE_ADMIN_PASSWORD: { get_param: KeystoneAdminPassword }
+        KEYSTONE_ADMIN_SERVICE_HOST: { get_attr: [server, first_address] }
+        KEYSTONE_ADMIN_SERVICE_PORT: { get_param: KeystoneAdminServicePort }
+        KEYSTONE_ADMIN_TOKEN: { get_param: KeystoneAdminToken }
+        KEYSTONE_AUTH_PROTOCOL: { get_param: KeystoneAuthProtocol }
+        KEYSTONE_DB_PASSWORD: { get_param: KeystoneDBPassword }
+        KEYSTONE_PUBLIC_SERVICE_HOST: { get_attr: [server, first_address] }
+        MARIADB_SERVICE_HOST: { get_attr: [server, first_address] }
+        MYSQL_ROOT_PASSWORD: { get_param: MysqlRootPassword }
+        NETWORK_MANAGER: { get_param: NetworkManager }
+        NOVA_API_SERVICE_HOST: { get_attr: [server, first_address] }
+        NOVA_COMPUTE_SERVICE_HOST: { get_attr: [server, first_address] }
+        NOVA_CONDUCTOR_SERVICE_HOST: { get_attr: [server, first_address] }
+        NOVA_DB_NAME: { get_param: NovaDBName }
+        NOVA_DB_PASSWORD: { get_param: NovaDBPassword }
+        NOVA_DB_USER: { get_param: NovaDBUser }
+        NOVA_EC2_API_SERVICE_HOST: { get_attr: [server, first_address] }
+        NOVA_EC2_COMPUTE_SERVICE_HOST: { get_attr: [server, first_address] }
+        NOVA_EC2_NETWORK_SERVICE_HOST: { get_attr: [server, first_address] }
+        NOVA_EC2_SERVICE_HOST: { get_attr: [server, first_address] }
+        NOVA_KEYSTONE_PASSWORD: { get_attr: [server, first_address] }
+        NOVA_KEYSTONE_USER: { get_param: NovaKeystoneUser }
+        NOVA_NETWORK_SERVICE_HOST: { get_attr: [server, first_address] }
+        PUBLIC_INTERFACE: { get_param: NovaPublicInterface }
+        PUBLIC_IP: { get_attr: [server, first_address] }
+        RABBITMQ_PASS: { get_param: RabbitPassword }
+        RABBITMQ_SERVICE_HOST: { get_attr: [server, first_address] }
+        RABBITMQ_USER: { get_param: RabbitUserName }
 
   openstack_environment_setup:
     type: OS::Heat::SoftwareConfig
@@ -444,7 +359,6 @@ resources:
         get_resource: atomic_install_glance_registry
       server:
         get_resource: server
-      input_values:
 
   atomic_install_glance_registry:
     type: OS::Heat::StructuredConfig
@@ -462,7 +376,6 @@ resources:
         get_resource: atomic_install_nova_conductor
       server:
         get_resource: server
-      input_values:
 
   atomic_install_nova_conductor:
     type: OS::Heat::StructuredConfig
@@ -480,7 +393,6 @@ resources:
         get_resource: atomic_install_glance_api
       server:
         get_resource: server
-      input_values:
 
   atomic_install_glance_api:
     type: OS::Heat::StructuredConfig
