@@ -7,4 +7,4 @@ LABEL INSTALL="docker run -d --name=nova-compute --privileged \
        -v /var/lib/nova:/var/lib/nova \
        -v /run:/run \
        -v /etc/libvirt/qemu:/etc/libvirt/qemu \
-       --env-file=/etc/nova-compute.env kollaglue/centos-rdo-nova-compute"
+       --env-file=/etc/openstack.env kollaglue/centos-rdo-nova-compute"
