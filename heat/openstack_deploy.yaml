@@ -15,6 +15,9 @@ parameters:
   image:
     type: string
     default: rhel-atomic
+  host_ip:
+    type: string
+    default: 10.18.57.5
 
 ## Rabbit ##
 
@@ -171,18 +174,43 @@ resources:
       user_data_format: SOFTWARE_CONFIG
       user_data: {get_attr: [boot_config, config]}
 
-  rabbitmq_env_config:
+  openstack_environment_deployment:
+    type: OS::Heat::SoftwareDeployment
+    depends_on: server
+    properties:
+      config:
+        get_resource: openstack_environment_setup
+      server:
+        get_resource: server
+      input_values:
+        RABBITMQ_PASS: {get_param: RabbitPassword}
+        RABBITMQ_USER: {get_param: RabbitUserName}
+        RABBITMQ_SERVICE_HOST: {get_param: host_ip}
+        MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
+        MARIADB_SERVICE_HOST: {get_param: host_ip}
+
+  openstack_environment_setup:
     type: OS::Heat::SoftwareConfig
     properties:
       group: script
       inputs:
       - name: RABBITMQ_PASS
       - name: RABBITMQ_USER
+      - name: RABBITMQ_SERVICE_HOST
+      - name: MARIADB_SERVICE_HOST
+      - name: MYSQL_ROOT_PASSWORD
       config: |
         #!/bin/bash
-        env > /etc/rabbit.env
-        MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
-        echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /etc/rabbitmq.env
+        env > /etc/openstack.env
+
+  rabbitmq_deployment:
+    type: OS::Heat::SoftwareDeployment
+    depends_on: openstack_environment_deployment
+    properties:
+      config:
+        get_resource: atomic_install_rabbitmq
+      server:
+        get_resource: server
 
   atomic_install_rabbitmq:
     type: OS::Heat::StructuredConfig
@@ -192,29 +220,14 @@ resources:
         command: install
         image: atomic-install-rabbitmq
 
-  rabbit_deployment:
+  mariadb_deployment:
     type: OS::Heat::SoftwareDeployment
+    depends_on: openstack_environment_deployment
     properties:
       config:
-        get_resource: atomic_install_rabbitmq
-        get_resource: rabbitmq_env_config
+        get_resource: atomic_install_mariadb
       server:
         get_resource: server
-      input_values:
-        RABBITMQ_PASS: {get_param: RabbitPassword}
-        RABBITMQ_USER: {get_param: RabbitUserName}
-
-  mariadb_config:
-    type: OS::Heat::SoftwareConfig
-    properties:
-      group: script
-      inputs:
-      - name: MYSQL_ROOT_PASSWORD
-      config: |
-        #!/bin/bash
-        env > /etc/mariadb.env
-        MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
-        echo "MARIADB_SERVICE_HOST=$MY_IP" >> /etc/mariadb.env
 
   atomic_install_mariadb:
     type: OS::Heat::StructuredConfig
@@ -223,18 +236,6 @@ resources:
       config:
         command: install
         image: atomic-install-mariadb
-
-  mariadb_deployment:
-    type: OS::Heat::SoftwareDeployment
-    depends_on: rabbit_deployment
-    properties:
-      config:
-        get_resource: atomic_install_mariadb
-        get_resource: mariadb_config
-      server:
-        get_resource: server
-      input_values:
-        MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
 
   # atomic_install_keystone:
   #   type: OS::Heat::SoftwareConfig
