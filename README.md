@@ -11,6 +11,11 @@ services:
 
 Setup
 ===========
+Run genenv.sh to initialize your environments variables.  The environment variables will be places in openstack.env in your current directory.
+```
+$ ./genenv.sh
+```
+
 Run the install script.
 ```
 $ sudo ./start.sh
