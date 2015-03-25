@@ -19,9 +19,9 @@ REGISTRY_PORT=8080
 IP=10.18.57.5
 
 #echo $containers
-for i in "${containers[@]}"; do
-    sudo docker pull imain/$i
-done
+# for i in "${containers[@]}"; do
+#     sudo docker pull imain/$i
+# done
 
 for i in "${containers[@]}"; do
     sudo docker tag -f imain/$i $IP:$REGISTRY_PORT/$i

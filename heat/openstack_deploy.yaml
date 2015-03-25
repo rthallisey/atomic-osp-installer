@@ -15,9 +15,6 @@ parameters:
   image:
     type: string
     default: rhel-atomic
-  docker_registry:
-    type: string
-    default: 10.18.57.5:8080
 
 ## Rabbit ##
 
@@ -172,61 +169,38 @@ resources:
       flavor: {get_param: flavor}
       key_name: {get_param: key_name}
       user_data_format: SOFTWARE_CONFIG
+      user_data: {get_attr: [boot_config, config]}
 
-  docker_config:
+  rabbitmq_env_config:
     type: OS::Heat::SoftwareConfig
     properties:
       group: script
       inputs:
-      - name: DOCKER_REGISTRY
-      config: |
-        #!/bin/bash
-        echo "OPTIONS='--insecure-registry $DOCKER_REGISTRY --selinux-enabled'" >> /etc/sysconfig/docker
-        echo "ADD_REGISTRY='--add-registry $DOCKER_REGISTRY'" >> /etc/sysconfig/docker
-        systemctl restart docker
-
-  docker_deployment:
-    type: OS::Heat::SoftwareDeployment
-    properties:
-      config:
-        get_resource: docker_config
-      server:
-        get_resource: server
-      input_values:
-        DOCKER_REGISTRY: {get_param: docker_registry}
-
-  rabbit_env_config:
-    type: OS::Heat::SoftwareConfig
-    properties:
-      group: script
-      inputs:
-      - name: DOCKER_REGISTRY
       - name: RABBITMQ_PASS
       - name: RABBITMQ_USER
       config: |
+        #!/bin/bash
         env > /etc/rabbit.env
         MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
-        echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /etc/rabbit.env
+        echo "RABBITMQ_SERVICE_HOST=$MY_IP" >> /etc/rabbitmq.env
 
-  atomic_install_rabbit:
-    type: OS::Heat::SoftwareConfig
+  atomic_install_rabbitmq:
+    type: OS::Heat::StructuredConfig
     properties:
       group: atomic
       config:
         command: install
-        image: imain/atomic-install-rabbitmq
+        image: atomic-install-rabbitmq
 
   rabbit_deployment:
     type: OS::Heat::SoftwareDeployment
-    depends_on: docker_deployment
     properties:
       config:
-        get_resource: rabbit_env_config
-        get_resource: atomic_install_rabbit
+        get_resource: atomic_install_rabbitmq
+        get_resource: rabbitmq_env_config
       server:
         get_resource: server
       input_values:
-        DOCKER_REGISTRY: {get_param: docker_registry}
         RABBITMQ_PASS: {get_param: RabbitPassword}
         RABBITMQ_USER: {get_param: RabbitUserName}
 
@@ -235,93 +209,91 @@ resources:
     properties:
       group: script
       inputs:
-      - name: DOCKER_REGISTRY
       - name: MYSQL_ROOT_PASSWORD
       config: |
         #!/bin/bash
-        env | grep "^MYSQL" > /etc/mariadb.env
+        env > /etc/mariadb.env
         MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
-        echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/mariadb.env
+        echo "MARIADB_SERVICE_HOST=$MY_IP" >> /etc/mariadb.env
 
   atomic_install_mariadb:
-    type: OS::Heat::SoftwareConfig
+    type: OS::Heat::StructuredConfig
     properties:
       group: atomic
       config:
         command: install
-        image: imain/atomic-install-mariadb
+        image: atomic-install-mariadb
 
   mariadb_deployment:
     type: OS::Heat::SoftwareDeployment
     depends_on: rabbit_deployment
     properties:
       config:
-        get_resource: mariadb_config
         get_resource: atomic_install_mariadb
+        get_resource: mariadb_config
       server:
         get_resource: server
       input_values:
-        DOCKER_REGISTRY: {get_param: docker_registry}
         MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
 
-  atomic_install_keystone:
-    type: OS::Heat::SoftwareConfig
-    properties:
-      group: atomic
-      config:
-        command: install
-        image: imain/atomic-install-keystone
-
-  keystone_config:
-    type: OS::Heat::SoftwareConfig
-    properties:
-      group: script
-      inputs:
-      - name: DOCKER_REGISTRY
-      - name: MYSQL_ROOT_PASSWORD
-      - name: GLANCE_KEYSTONE_PASSWORD
-      - name: GLANCE_KEYSTONE_USER
-      - name: KEYSTONE_ADMIN_PASSWORD
-      - name: KEYSTONE_ADMIN_SERVICE_PORT
-      - name: KEYSTONE_ADMIN_TOKEN
-      - name: KEYSTONE_AUTH_PROTOCOL
-      - name: KEYSTONE_DB_PASSWORD
-      - name: NOVA_KEYSTONE_PASSWORD
-      - name: NOVA_KEYSTONE_USER
-      - name: ADMIN_TENANT_NAME
-      - name: DB_ROOT_PASSWORD
-      config: |
-        #!/bin/bash
-        env > /tmp/keystone.env
-        MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
-        echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/keystone.env
-        echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/keystone.env
-        echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/keystone.env
-
-  keystone_deployment:
-    type: OS::Heat::SoftwareDeployment
-    depends_on: mariadb_deployment
-    properties:
-      config:
-        get_resource: atomic_install_keystone
-        get_resource: keystone_config
-      server:
-        get_resource: server
-      input_values:
-        DOCKER_REGISTRY: {get_param: docker_registry}
-        MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
-        GLANCE_KEYSTONE_PASSWORD: {get_param: GlanceKeystonePassword}
-        GLANCE_KEYSTONE_USER: {get_param: GlanceKeystoneUser}
-        KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
-        KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
-        KEYSTONE_ADMIN_TOKEN: {get_param: KeystoneAdminToken}
-        KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
-        KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
-        NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
-        NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
-        ADMIN_TENANT_NAME: {get_param: AdminTenantName}
-        DB_ROOT_PASSWORD: {get_param: DBRootPassword}
-
+  # atomic_install_keystone:
+  #   type: OS::Heat::SoftwareConfig
+  #   properties:
+  #     group: atomic
+  #     config:
+  #       command: install
+  #       image: imain/atomic-install-keystone
+  #
+  # keystone_config:
+  #   type: OS::Heat::SoftwareConfig
+  #   properties:
+  #     group: script
+  #     inputs:
+  #     - name: DOCKER_REGISTRY
+  #     - name: MYSQL_ROOT_PASSWORD
+  #     - name: GLANCE_KEYSTONE_PASSWORD
+  #     - name: GLANCE_KEYSTONE_USER
+  #     - name: KEYSTONE_ADMIN_PASSWORD
+  #     - name: KEYSTONE_ADMIN_SERVICE_PORT
+  #     - name: KEYSTONE_ADMIN_TOKEN
+  #     - name: KEYSTONE_AUTH_PROTOCOL
+  #     - name: KEYSTONE_DB_PASSWORD
+  #     - name: NOVA_KEYSTONE_PASSWORD
+  #     - name: NOVA_KEYSTONE_USER
+  #     - name: ADMIN_TENANT_NAME
+  #     - name: DB_ROOT_PASSWORD
+  #     config: |
+  #       #!/bin/bash
+  #       env > /tmp/keystone.env
+  #       MY_IP=$(ip route get $(ip route | awk '$1 == "default" {print $3}') | awk '$4 == "src" {print $5}')
+  #       echo "KEYSTONE_ADMIN_SERVICE_HOST=$MY_IP" >> /tmp/keystone.env
+  #       echo "KEYSTONE_PUBLIC_SERVICE_HOST=$MY_IP" >> /tmp/keystone.env
+  #       echo "MARIADB_SERVICE_HOST=$MY_IP" >> /tmp/keystone.env
+  #
+  # keystone_deployment:
+  #   type: OS::Heat::SoftwareDeployment
+  #   depends_on: mariadb_deployment
+  #   properties:
+  #     config:
+  #       get_resource: atomic_install_keystone
+  #       get_resource: keystone_config
+  #     server:
+  #       get_resource: server
+  #     input_values:
+  #       DOCKER_REGISTRY: {get_param: docker_registry}
+  #       MYSQL_ROOT_PASSWORD: {get_param: MysqlRootPassword}
+  #       GLANCE_KEYSTONE_PASSWORD: {get_param: GlanceKeystonePassword}
+  #       GLANCE_KEYSTONE_USER: {get_param: GlanceKeystoneUser}
+  #       KEYSTONE_ADMIN_PASSWORD: {get_param: KeystoneAdminPassword}
+  #       KEYSTONE_ADMIN_SERVICE_PORT: {get_param: KeystoneAdminServicePort}
+  #       KEYSTONE_ADMIN_TOKEN: {get_param: KeystoneAdminToken}
+  #       KEYSTONE_AUTH_PROTOCOL: {get_param: KeystoneAuthProtocol}
+  #       KEYSTONE_DB_PASSWORD: {get_param: KeystoneDBPassword}
+  #       NOVA_KEYSTONE_PASSWORD: {get_param: NovaKeystonePassword}
+  #       NOVA_KEYSTONE_USER: {get_param: NovaKeystoneUser}
+  #       ADMIN_TENANT_NAME: {get_param: AdminTenantName}
+  #       DB_ROOT_PASSWORD: {get_param: DBRootPassword}
+  #
   # glance_api_config:
   #   type: OS::Heat::SoftwareConfig
   #   properties:
