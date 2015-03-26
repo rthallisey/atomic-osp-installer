@@ -1,4 +1,4 @@
 FROM kollaglue/centos-rdo-nova-conductor
 MAINTAINER Ryan Hallisey <rhallise@redhat.com>
 
-LABEL INSTALL="docker run -d --name nova-conductor --net=host --restart=always --env-file=/etc/openstack.env kollaglue/centos-rdo-nova-conductor"
+LABEL INSTALL="docker run -d --name nova-conductor --net=host --restart=always --env-file=/etc/openstack.env IMAGE"

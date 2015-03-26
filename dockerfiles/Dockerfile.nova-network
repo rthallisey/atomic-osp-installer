@@ -1,4 +1,4 @@
 FROM kollaglue/centos-rdo-nova-network
 MAINTAINER Ryan Hallisey <rhallise@redhat.com>
 
-LABEL INSTALL="docker run -d --name nova-network --net=host --restart=always --privileged --env-file=/etc/openstack.env kollaglue/centos-rdo-nova-network"
+LABEL INSTALL="docker run -d --name nova-network --net=host --restart=always --privileged --env-file=/etc/openstack.env IMAGE"

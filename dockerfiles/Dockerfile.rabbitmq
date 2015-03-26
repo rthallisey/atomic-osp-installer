@@ -1,4 +1,4 @@
 FROM kollaglue/centos-rdo-rabbitmq
 MAINTAINER Ryan Hallisey <rhallise@redhat.com>
 
-LABEL INSTALL="docker run -d --name rabbitmq --net=host --env-file=/etc/openstack.env kollaglue/centos-rdo-rabbitmq"
+LABEL INSTALL="docker run -d --name rabbitmq --net=host --env-file=/etc/openstack.env IMAGE"

@@ -1,4 +1,4 @@
 FROM kollaglue/centos-rdo-nova-api
 MAINTAINER Ryan Hallisey <rhallise@redhat.com>
 
-LABEL INSTALL="docker run -d --name nova-api --privileged --net=host --restart=always --env-file=/etc/openstack.env kollaglue/centos-rdo-nova-api:latest"
+LABEL INSTALL="docker run -d --name nova-api --privileged --net=host --restart=always --env-file=/etc/openstack.env IMAGE"
