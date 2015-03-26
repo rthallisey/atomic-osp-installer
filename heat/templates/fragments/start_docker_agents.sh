@@ -28,7 +28,7 @@ EOF
 # For older docker versions < 1.4.x use commented line
 #sed -i '/^OPTIONS/s/$/ --insecure-registry 192.168.1.102:5000/' /etc/sysconfig/docker
 #sed -i "/INSECURE_REGISTRY/c\INSECURE_REGISTRY='--insecure-registry 10.18.57.5:8080'" /etc/sysconfig/docker
-echo "OPTIONS='-s overlay --insecure-registry $docker_registry --selinux-enabled'" >> /etc/sysconfig/docker
+echo "OPTIONS='--insecure-registry $docker_registry --selinux-enabled'" >> /etc/sysconfig/docker
 echo "ADD_REGISTRY='--add-registry $docker_registry'" >> /etc/sysconfig/docker
 
 # enable and start docker
