@@ -390,11 +390,11 @@ resources:
     depends_on: openstack_environment_deployment
     properties:
       config:
-        get_resource: configure_glance_api
+        get_resource: configure_nova_api
       server:
         get_resource: server
 
-  configure_glance_api:
+  configure_nova_api:
     type: OS::Heat::StructuredConfig
     properties:
       group: atomic
@@ -438,7 +438,7 @@ resources:
 
   nova_network_install:
     type: OS::Heat::SoftwareDeployment
-    depends_on: nova_conductor_deployment
+    depends_on: openstack_environment_deployment
     properties:
       config:
         get_resource: configure_nova_network
