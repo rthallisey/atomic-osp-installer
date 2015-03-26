@@ -38,23 +38,18 @@ parameters:
     default: kolla
 
 ## KEYSTONE ##
-  KeystoneUserName:
-    default: admin
-    description: The admin username for Keystone
-    type: string
-
   KeystoneAdminPassword:
     default: 12345
     description: The admin username for Keystone
     type: string
 
   KeystoneAdminServicePort:
-    default: 5000
+    default: 35357
     description: The admin username for Keystone
     type: string
 
   KeystoneAdminToken:
-    default: 13245
+    default: 12345
     description: The admin username for Keystone
     type: string
 
@@ -90,6 +85,11 @@ parameters:
 
   AdminTenantName:
     default: admin
+    description: The admin username for Keystone
+    type: string
+
+  AdminUserPassword:
+    default: 12345
     description: The admin username for Keystone
     type: string
 
@@ -172,6 +172,9 @@ outputs:
   instance_ip:
     description: The IP address of the deployed instance
     value: { get_attr: [server, first_address] }
+  os_auth_url:
+    description: Keystone auth URL
+    value: { get_attr: [server, first_address] }
 
 resources:
 
@@ -197,6 +200,7 @@ resources:
         get_resource: server
       input_values:
         ADMIN_TENANT_NAME: { get_param: AdminTenantName }
+        ADMIN_USER_PASSWORD: { get_param: AdminUserPassword }
         DB_ROOT_PASSWORD: { get_param: DBRootPassword }
         FLAT_INTERFACE: { get_param: NovaFlatInterface }
         GLANCE_API_SERVICE_HOST: { get_attr: [server, first_address] }
@@ -241,6 +245,7 @@ resources:
       group: script
       inputs:
         - name: ADMIN_TENANT_NAME
+        - name: ADMIN_USER_PASSWORD
         - name: DB_ROOT_PASSWORD
         - name: FLAT_INTERFACE
         - name: GLANCE_API_SERVICE_HOST
