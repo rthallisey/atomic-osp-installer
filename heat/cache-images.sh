@@ -11,6 +11,7 @@ containers=(atomic-install-rabbitmq
 	    atomic-install-nova-libvirt
 	    atomic-install-nova-compute
 	    atomic-install-nova-scheduler
+	    atomic-install-nova-network
 #	    atomic-install-heat-engine
 #	    atomic-install-heat-api
 	   )
