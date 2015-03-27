@@ -14,8 +14,6 @@ User=root
 Restart=on-failure
 ExecStartPre=-/usr/bin/docker kill heat-agents
 ExecStartPre=-/usr/bin/docker rm heat-agents
-ExecStartPre=-/bin/curl http://shell.bos.redhat.com/~rhallise/docker-tarfiles/centos-rdo-base.tar | /usr/bin/docker load
-
 ExecStartPre=/usr/bin/docker pull $agent_image
 ExecStart=/usr/bin/docker run --name heat-agents --privileged --net=host -v /etc:/host/etc -v /usr/bin/atomic:/usr/bin/atomic -v /var/run/docker.sock:/var/run/docker.sock -v /var/lib/cloud:/var/lib/cloud -v /var/lib/heat-cfntools:/var/lib/heat-cfntools $agent_image
 ExecStop=/usr/bin/docker stop heat-agents
