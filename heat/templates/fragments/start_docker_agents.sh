@@ -30,6 +30,7 @@ echo "OPTIONS='--insecure-registry $docker_registry --selinux-enabled'" >> /etc/
 echo "ADD_REGISTRY='--add-registry $docker_registry'" >> /etc/sysconfig/docker
 
 /sbin/setenforce 0
+/sbin/modprobe ebtables
 
 # enable and start docker
 /usr/bin/systemctl enable docker.service

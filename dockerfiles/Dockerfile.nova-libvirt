@@ -1,4 +1,10 @@
 FROM kollaglue/centos-rdo-nova-libvirt
 MAINTAINER Ryan Hallisey <rhallise@redhat.com>
 
-LABEL INSTALL="docker run -d --name libvirt --privileged --net=host --restart=always --env-file=/etc/openstack.env IMAGE"
+LABEL INSTALL="docker run -d --name libvirt --privileged \
+       --net=host --pid=host --restart=always \
+       -v /sys/fs/cgroup:/sys/fs/cgroup \
+       -v /var/lib/nova:/var/lib/nova \
+       -v /run:/run \
+       -v /etc/libvirt/qemu:/etc/libvirt/qemu \
+       --env-file=/etc/openstack.env IMAGE"
