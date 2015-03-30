@@ -17,7 +17,7 @@ containers=(atomic-install-rabbitmq
 	   )
 
 REGISTRY_PORT=8080
-IP=10.18.57.5
+IP=10.18.57.202
 
 #echo $containers
 # for i in "${containers[@]}"; do

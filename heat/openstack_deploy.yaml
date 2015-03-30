@@ -11,7 +11,7 @@ parameters:
     default: default
   flavor:
     type: string
-    default: m1.small
+    default: m1.medium
   image:
     type: string
     default: rhel-atomic
@@ -423,6 +423,23 @@ resources:
       config:
         command: install
         image: atomic-install-nova-compute
+
+  nova_libvirt_install:
+    type: OS::Heat::SoftwareDeployment
+    depends_on: openstack_environment_deployment
+    properties:
+      config:
+        get_resource: configure_nova_libvirt
+      server:
+        get_resource: server
+
+  configure_nova_libvirt:
+    type: OS::Heat::StructuredConfig
+    properties:
+      group: atomic
+      config:
+        command: install
+        image: atomic-install-nova-libvirt
 
   nova_scheduler_install:
     type: OS::Heat::SoftwareDeployment

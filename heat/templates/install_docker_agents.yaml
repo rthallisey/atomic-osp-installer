@@ -6,7 +6,7 @@ parameters:
     default: heat-docker-atomic-agents
   docker_registry:
     type: string
-    default: 10.18.57.5:8080
+    default: 10.18.57.202:8080
 
 resources:
   install_docker_agents:
