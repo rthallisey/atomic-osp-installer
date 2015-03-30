@@ -11,7 +11,7 @@ parameters:
     default: default
   flavor:
     type: string
-    default: m1.medium
+    default: m1.large
   image:
     type: string
     default: rhel-atomic
