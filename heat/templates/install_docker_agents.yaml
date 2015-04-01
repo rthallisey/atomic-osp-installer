@@ -3,7 +3,7 @@ heat_template_version: 2014-10-16
 parameters:
   agent_image:
     type: string
-    default: heat-docker-atomic-agents
+    default: ramishra/heat-docker-atomic-agents
   docker_registry:
     type: string
     default: 10.18.57.202:8080
