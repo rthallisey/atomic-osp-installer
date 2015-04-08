@@ -26,8 +26,8 @@ EOF
 # update docker for local insecure registry(optional)
 # Note: This is different for different docker versions
 # For older docker versions < 1.4.x use commented line
-echo "OPTIONS='--insecure-registry $docker_registry --selinux-enabled'" >> /etc/sysconfig/docker
-echo "ADD_REGISTRY='--add-registry $docker_registry'" >> /etc/sysconfig/docker
+#echo "OPTIONS='--insecure-registry $docker_registry --selinux-enabled'" >> /etc/sysconfig/docker
+#echo "ADD_REGISTRY='--registry-mirror $docker_registry'" >> /etc/sysconfig/docker
 
 /sbin/setenforce 0
 /sbin/modprobe ebtables

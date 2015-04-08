@@ -11,7 +11,7 @@ parameters:
     default: default
   flavor:
     type: string
-    default: m1.large
+    default: m1.medium
   image:
     type: string
     default: rhel-atomic
@@ -303,7 +303,7 @@ resources:
       group: atomic
       config:
         command: install
-        image: atomic-install-rabbitmq
+        image: imain/atomic-install-rabbitmq
 
   mariadb_install:
     type: OS::Heat::SoftwareDeployment
@@ -320,7 +320,7 @@ resources:
       group: atomic
       config:
         command: install
-        image: atomic-install-mariadb
+        image: imain/atomic-install-mariadb
 
   keystone_install:
     type: OS::Heat::SoftwareDeployment
@@ -337,7 +337,7 @@ resources:
       group: atomic
       config:
         command: install
-        image: atomic-install-keystone
+        image: imain/atomic-install-keystone
 
   glance_api_install:
     type: OS::Heat::SoftwareDeployment
@@ -354,7 +354,7 @@ resources:
       group: atomic
       config:
         command: install
-        image: atomic-install-glance-api
+        image: imain/atomic-install-glance-api
 
   glance_registry_install:
     type: OS::Heat::SoftwareDeployment
@@ -371,7 +371,7 @@ resources:
       group: atomic
       config:
         command: install
-        image: atomic-install-glance-registry
+        image: imain/atomic-install-glance-registry
 
   nova_conductor_install:
     type: OS::Heat::SoftwareDeployment
@@ -388,7 +388,7 @@ resources:
       group: atomic
       config:
         command: install
-        image: atomic-install-nova-conductor
+        image: imain/atomic-install-nova-conductor
 
   nova_api_install:
     type: OS::Heat::SoftwareDeployment
@@ -405,7 +405,7 @@ resources:
       group: atomic
       config:
         command: install
-        image: atomic-install-nova-api
+        image: imain/atomic-install-nova-api
 
   nova_compute_install:
     type: OS::Heat::SoftwareDeployment
@@ -422,7 +422,7 @@ resources:
       group: atomic
       config:
         command: install
-        image: atomic-install-nova-compute
+        image: imain/atomic-install-nova-compute
 
   nova_libvirt_install:
     type: OS::Heat::SoftwareDeployment
@@ -439,7 +439,7 @@ resources:
       group: atomic
       config:
         command: install
-        image: atomic-install-nova-libvirt
+        image: imain/atomic-install-nova-libvirt
 
   nova_scheduler_install:
     type: OS::Heat::SoftwareDeployment
@@ -456,7 +456,7 @@ resources:
       group: atomic
       config:
         command: install
-        image: atomic-install-nova-scheduler
+        image: imain/atomic-install-nova-scheduler
 
   nova_network_install:
     type: OS::Heat::SoftwareDeployment
@@ -473,4 +473,4 @@ resources:
       group: atomic
       config:
         command: install
-        image: atomic-install-nova-network
+        image: imain/atomic-install-nova-network
