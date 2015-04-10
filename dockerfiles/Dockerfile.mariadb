@@ -1,4 +1,4 @@
-FROM kollaglue/centos-rdo-mariadb
+FROM kollaglue/centos-rdo-mariadb-app
 MAINTAINER Ryan Hallisey <rhallise@redhat.com>
 
-LABEL INSTALL="docker run -d --name mariadb --net=host --env-file=/etc/openstack.env -v /var/lib/mysql:/var/lib/mysql:Z -v /var/log/mariadb:/var/log/mariadb:Z IMAGE"
+LABEL INSTALL="docker run -d --name mariadb --net=host --env-file=/etc/openstack.env -v /var/lib/mysql:/var/lib/mysql -v /var/log/mariadb:/var/log/mariadb IMAGE"
