@@ -13,15 +13,34 @@ nova flavor-create baremetal_fulldisk auto 4096 10 1
 
 Set the right ramdisk and kernel images for setting up the image:
 ```
-$ nova flavor-key baremetal_fulldisk set baremetal:deploy_kernel_id=f38d630b-0d00-4cae-83cf-4e824ef07625
-$ nova flavor-key baremetal_fulldisk set baremetal:deploy_ramdisk_id=f38d630b-0d00-4cae-83cf-4e824ef07625
+$ nova flavor-key baremetal_fulldisk set baremetal:deploy_kernel_id=<baremetal kernel>
+$ nova flavor-key baremetal_fulldisk set baremetal:deploy_ramdisk_id=<baremetal ramdisk>
 ```
 
-There seems to be a bug still in the ironic driver that looks to see if swap or
-ephemeral is > 0 and errors if it is.  I had to hack this to get around it.
-Can't look now I'll update this later.
+There seems to be a bug in ironic as installed on the seed vm so you need to edit:
+
+iscsi_deploy.py
+
+in two locations (use find) and change:
+
+```
+    i_info['swap_mb'] = info.get('swap_mb', 0)
+    i_info['ephemeral_gb'] = info.get('ephemeral_gb', 0)
+    err_msg_invalid = _("Cannot validate parameter for iSCSI deploy. "
+                        "Invalid parameter %(param)s. Reason: %(reason)s")
+```
+
+to
+
+```
+    i_info['swap_mb'] = 0
+    i_info['ephemeral_gb'] = 0
+    err_msg_invalid = _("Cannot validate parameter for iSCSI deploy. "
+                        "Invalid parameter %(param)s. Reason: %(reason)s")
+```
 
 Restart services:
+
 ```
 sudo systemctl restart ironic-conductor
 sudo systemctl restart nova-compute
