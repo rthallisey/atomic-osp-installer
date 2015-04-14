@@ -64,8 +64,8 @@ docker run --name glance-api --net=host -d --restart=always \
        --env-file=openstack.env rthallisey/fedora-rdo-glance-api:latest
 
 ######## CINDER ########
-echo Starting iscsi
-docker run -d --name iscsi --net=host \
+echo Starting cinder-iscsi
+docker run -d --name cinder-iscsi --net=host \
        --env-file=openstack.env \
        --privileged \
        --restart=always \
@@ -75,7 +75,7 @@ docker run -d --name iscsi --net=host \
        -v /etc/iscsi:/etc/iscsi \
        -v /lib/modules:/lib/modules \
        -v /var/log:/var/log \
-       rthallisey/centos-rdo-iscsi
+       rthallisey/centos-rdo-cinder-iscsi
 
 echo Starting cinder-api
 docker run -d --name cinder-api --net=host \
