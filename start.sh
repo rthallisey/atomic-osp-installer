@@ -64,6 +64,19 @@ docker run --name glance-api --net=host -d --restart=always \
        --env-file=openstack.env rthallisey/fedora-rdo-glance-api:latest
 
 ######## CINDER ########
+echo Starting cinder-iscsi
+docker run -d --name cinder-iscsi --net=host \
+       --env-file=openstack.env \
+       --privileged \
+       --restart=always \
+       -v /dev:/dev \
+       -v /var/lock/iscsi:/var/lock/iscsi \
+       -v /var/lib/iscsi:/var/lib/iscsi \
+       -v /etc/iscsi:/etc/iscsi \
+       -v /lib/modules:/lib/modules \
+       -v /var/log:/var/log \
+       rthallisey/centos-rdo-cinder-iscsi
+
 echo Starting cinder-api
 docker run -d --name cinder-api --net=host \
        --env-file=openstack.env \
@@ -83,6 +96,7 @@ docker run -d --name cinder-volume --net=host \
        --env-file=openstack.env \
        --privileged \
        --restart=always \
+       -v /dev:/dev \
        rthallisey/centos-rdo-cinder-volume
 
 echo Starting cinder-scheduler
